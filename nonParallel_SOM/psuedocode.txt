@@ -1,0 +1,78 @@
+PSEUDOCODE IMPLEMENTATION OF SINGLE THREADED SELF ORGASNING MAP
+
+BASIC ALGORITHM:
+	initialise map with vectors of random values, of size n, where n is the length of the input vectors
+	load input vectors/create input vectors
+	while (map not converged)
+		for all vector in input_vectors
+			find optimal map_vector
+			update optimal map_vector using formula
+			update optimal map_vector neighbours
+		
+		sometimes
+			reduce neighbourhood size
+
+THINGS TO CONSIDER:
+	-	Initial neighbourhood size
+	-	When to reduce neighbourhood size
+	-	Learning rate
+	-	Map size
+	-	Convergence tollerance
+
+PSUDEOCODE:
+	
+	int map_side_size;
+	vector<vector> map;
+	vector<vector> input;
+
+	int moved_points;
+	int tolerance;
+	int max_value, min_value;
+
+	int neighbourhood_size
+
+	vector<vector> initialiseMap(max, min){
+		iterate (map_side_size^2)
+			map.add(randomValue(max, min))
+	}
+
+	vector<vector> initialiseInput(){
+		iterate (map_side_size^2)
+			map.add(randomValue(max, min))
+	}
+
+	boolean not_convergent(){
+		return moved_points > tolerance
+	}
+
+	void updateWeights(winner, vector){
+		for point in neightbourhood{
+			adjustWeight(point)
+		}
+	}
+
+	main{
+		initialiseInput()
+		max_value = max(input)
+		min_value = min(input)
+		initialiseMap(max, min)
+
+		int winner
+		int winner_dist
+
+		moved_points = infinity
+		while (not_convergent()){
+			winner_dist = infinity
+			moved_points = 0
+			for vector in input{
+				for point in map{
+					if (distance(point, vector) < winner_dist){
+						winner = vector.index
+					}
+				}
+				updateWeights(winner, vector)
+			}
+		}
+
+	}
+
