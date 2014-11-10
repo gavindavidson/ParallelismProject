@@ -25,7 +25,7 @@ PSUDEOCODE:
 	vector<vector> map;
 	vector<vector> input;
 
-	int moved_points;
+	int changed_points;
 	int tolerance;
 	int max_value, min_value;
 
@@ -42,12 +42,15 @@ PSUDEOCODE:
 	}
 
 	boolean not_convergent(){
-		return moved_points > tolerance
+		return changed_points > tolerance
 	}	
 
 	void updateWeights(winner, vector){
 		for point in neightbourhood{
 			adjustWeight(point)
+			if (point adjusted by x amount / at all){
+				changed_points++
+			}
 		}
 	}
 
@@ -60,10 +63,10 @@ PSUDEOCODE:
 		int winner
 		int winner_dist
 
-		moved_points = infinity
+		changed_points = infinity
 		while (not_convergent()){
 			winner_dist = infinity
-			moved_points = 0
+			changed_points = 0
 			for vector in input{
 				for point in map{
 					if (distance(point, vector) < winner_dist){
