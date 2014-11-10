@@ -43,7 +43,7 @@ PSUDEOCODE:
 
 	boolean not_convergent(){
 		return moved_points > tolerance
-	}
+	}	
 
 	void updateWeights(winner, vector){
 		for point in neightbourhood{
