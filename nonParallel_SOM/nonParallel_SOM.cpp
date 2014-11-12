@@ -3,6 +3,8 @@
 #include <vector>
 #include <new>
 #include <cmath>
+#include <algorithm>
+#include "drawHTMLMap.h"
 
 /*
 THINGS TO CONSIDER:
@@ -85,20 +87,21 @@ float euclidean_distance(vector<float> a, vector<float> b){
 }
 
 void updateWeights(int winner_index){
-	int current_index 0;
-	for (vector<float>::iterator map_iter = map.begin(); map_iter != map_iter.end(); map_iter++){
+	// int current_index 0;
+	// for (vector<float>::iterator map_iter = map.begin(); map_iter != map_iter.end(); map_iter++){
 
-	}
+	// }
 }
 
 int determineSteps(int a, int b){
-	int a_x, a_y, b_x, b_y;
-	a_x = a % map_side_size;
-	a_y = a / map_side_size;
-	b_x = a % map_side_size;
-	b_y = a / map_side_size;
+	// int a_x, a_y, b_x, b_y;
+	// a_x = a % map_side_size;
+	// a_y = a / map_side_size;
+	// b_x = a % map_side_size;
+	// b_y = a / map_side_size;
 
-	return max(abs(a_x-b_x), abs(a_y-b_y));
+	// return max(abs(a_x-b_x), abs(a_y-b_y));
+	return 0;
 }
 
 
@@ -117,7 +120,8 @@ int main(){
 	map = initialiseRandomVectors(map_side_size*map_side_size, input_vector_length);
 	input = initialiseRandomVectors(input_size, input_vector_length);
 
-	vector< <float> >::iterator map_iter, input_iter;
+	vector< vector <float> >::iterator map_iter, input_iter;
+	//vector< <float> >::iterator input_iter;
 
 	changed_points = tollerance + 1;
 	float winnerDistance, possible_winnerDistance;
@@ -126,7 +130,7 @@ int main(){
 		for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
 			winner = 0;
 			current = 0;
-			winnerDistance = euclidean_distance(*input_iter, map.begin());
+			winnerDistance = euclidean_distance(*input_iter, *(map.begin()));
 			for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
 				possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
 				if (possible_winnerDistance < winnerDistance){
