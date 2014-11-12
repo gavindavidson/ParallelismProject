@@ -2,10 +2,13 @@
 #include <cmath>
 #include <iostream>
 #include <cfloat>
-
-// Class used to draw a html representation of a map
+#include <sstream>
+#include <fstream>
+#include <iostream>
 
 using std::vector;
 using std::string;
 
-void drawMap(vector< vector<float > >, string);
+// Class used to draw a html representation of a map
+
+int drawMap(vector< vector<float > >, string);

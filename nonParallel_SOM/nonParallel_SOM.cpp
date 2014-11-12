@@ -2,8 +2,8 @@
 #include <cstdlib>
 #include <vector>
 #include <new>
-#include <cmath>
-#include <algorithm>
+//#include <cmath>
+//#include <algorithm>
 #include "drawHTMLMap.h"
 
 /*
@@ -18,7 +18,7 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 100
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 16
 #define tollerance 40
 #define input_size 16384
 #define input_vector_length 5
@@ -115,31 +115,37 @@ int main(){
 			<< "==\t\t\t==" << endl;
 
 	min = 0;
-	max = 10000;
+	max = 1000;
 	range = max - min;
 	map = initialiseRandomVectors(map_side_size*map_side_size, input_vector_length);
-	input = initialiseRandomVectors(input_size, input_vector_length);
+	drawMap(map, "map.html");
+	// for (vector< vector <float> >::iterator map_iter = map.begin(); map_iter != map.end(); map_iter++){
+	// 	for (vector<float>::iterator vector_iter = (*map_iter).begin(); vector_iter != (*map_iter).end(); vector_iter++){
+	// 		cout << (*vector_iter) << endl;
+	// 	}
+	// }
+	// input = initialiseRandomVectors(input_size, input_vector_length);
 
-	vector< vector <float> >::iterator map_iter, input_iter;
-	//vector< <float> >::iterator input_iter;
+	// vector< vector <float> >::iterator map_iter, input_iter;
+	// //vector< <float> >::iterator input_iter;
 
-	changed_points = tollerance + 1;
-	float winnerDistance, possible_winnerDistance;
-	int winner, current;
-	while (!convergent()){
-		for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
-			winner = 0;
-			current = 0;
-			winnerDistance = euclidean_distance(*input_iter, *(map.begin()));
-			for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
-				possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
-				if (possible_winnerDistance < winnerDistance){
-					winnerDistance = possible_winnerDistance;
-					winner = current;
-				}
-				current++;
-			}
-			updateWeights(winner);
-		}
-	}
+	// changed_points = tollerance + 1;
+	// float winnerDistance, possible_winnerDistance;
+	// int winner, current;
+	// while (!convergent()){
+	// 	for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
+	// 		winner = 0;
+	// 		current = 0;
+	// 		winnerDistance = euclidean_distance(*input_iter, *(map.begin()));
+	// 		for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
+	// 			possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
+	// 			if (possible_winnerDistance < winnerDistance){
+	// 				winnerDistance = possible_winnerDistance;
+	// 				winner = current;
+	// 			}
+	// 			current++;
+	// 		}
+	// 		updateWeights(winner);
+	// 	}
+	// }
 }
