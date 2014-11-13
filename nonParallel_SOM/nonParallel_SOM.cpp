@@ -18,7 +18,7 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 100
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
+#define map_side_size 256
 #define tollerance 40
 #define input_size 16384
 #define input_vector_length 5
@@ -115,7 +115,7 @@ int main(){
 			<< "==\t\t\t==" << endl;
 
 	min = 0;
-	max = 1000;
+	max = 125555;
 	range = max - min;
 	map = initialiseRandomVectors(map_side_size*map_side_size, input_vector_length);
 	drawMap(map, "map.html");

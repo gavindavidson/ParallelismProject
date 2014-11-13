@@ -13,7 +13,6 @@ float euclidean_distance_from_origin(vector<float> a){
 		sum += pow((*a_iter), 2);
 		a_iter++;
 	}
-	//std::cout << sqrt(sum) << std::endl;
 	return sqrt(sum);
 }
 
@@ -21,9 +20,6 @@ string decimalToHex(int a){
 	std::stringstream ss;
 	ss<< std::hex << a; // int decimal_value
 	std::string res ( ss.str() );
-	if (a < 0){
-		std::cout << "HIT\n";
-	}
 	if (a < 17){
 		res = "0" + res;
 	}
@@ -45,29 +41,38 @@ vector<string> hexColourFromFloat(vector<float> a){
 			current_r_int = 0;
 			current_g_int = 0;
 			current_b_int = ((*a_iter)/increment) * 255;
+			//std::cout << "sextiles[1]" << std::endl;
 		}
 		else if ((*a_iter) < sextiles[2]){
 			current_r_int = 0;
-			current_g_int = ((*a_iter)-sextiles[1]/increment) * 255;
+			current_g_int = (((*a_iter)-sextiles[1])/increment) * 255;
 			current_b_int = 255;
+			//std::cout << "sextiles[2]" << std::endl;
 		}
 		else if ((*a_iter) < sextiles[3]){
 			current_r_int = 0;
 			current_g_int = 255;
-			current_b_int = 255 - (((*a_iter)-sextiles[2]/increment) * 255);
+			current_b_int = 255 - ((((*a_iter)-sextiles[2])/increment) * 255);
+			//std::cout << "sextiles[3]" << std::endl;
 		}
 		else if ((*a_iter)< sextiles[4]){
-			current_r_int = ((*a_iter)-sextiles[3]/increment) * 255;
+			current_r_int = (((*a_iter)-sextiles[3])/increment) * 255;
 			current_g_int = 255;
 			current_b_int = 0;
+			//std::cout << "sextiles[4]" << std::endl;
 		}
-		else{
+		else if ((*a_iter)< sextiles[5]){
 			current_r_int = 255;
-			current_g_int = 255 - (((*a_iter)-sextiles[4]/increment) * 255);
+			current_g_int = 255 - ((((*a_iter)-sextiles[4])/increment) * 255);
 			current_b_int = 0;
+			//std::cout << "sextiles[5]" << std::endl;
+		}
+		else {
+			current_r_int = 255;
+			current_g_int = 0;
+			current_b_int = (((*a_iter)-sextiles[5])/increment) * 255;;
 		}
 
-		std::cout << "R:" << current_r_int << " G:" << current_g_int << " B:" << current_b_int << std::endl;
 
 		current += decimalToHex(current_r_int) + decimalToHex(current_g_int) + decimalToHex(current_b_int);
 		output.push_back(current);
