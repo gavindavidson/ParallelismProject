@@ -20,7 +20,7 @@ string decimalToHex(int a){
 	std::stringstream ss;
 	ss<< std::hex << a; // int decimal_value
 	std::string res ( ss.str() );
-	if (a < 17){		// Because of hexidecimal and the fact that colours must be of the format "#RRGGBB"
+	if (a < 16){		// Because of hexidecimal and the fact that colours must be of the format "#RRGGBB"
 		res = "0" + res;
 	}
 	return res;
@@ -41,48 +41,48 @@ vector<string> hexColourFromFloat(vector<float> a){
 			current_r_int = 0;
 			current_g_int = 0;
 			current_b_int = ((*a_iter)/increment) * 255;
-			std::cout << "sextiles[1]\t";// << std::endl;
+			//std::cout << "sextiles[1]\t";// << std::endl;
 		}
 		else if ((*a_iter) < sextiles[2]){
 			current_r_int = 0;
 			current_g_int = (((*a_iter)-sextiles[1])/increment) * 255;
 			current_b_int = 255;
-			std::cout << "sextiles[2]\t";// << std::endl;
+			//std::cout << "sextiles[2]\t";// << std::endl;
 		}
 		else if ((*a_iter) < sextiles[3]){
 			current_r_int = 0;
 			current_g_int = 255;
 			current_b_int = 255 - ((((*a_iter)-sextiles[2])/increment) * 255);
-			std::cout << "sextiles[3]\t";// << std::endl;
+			// std::cout << "sextiles[3]\t";// << std::endl;
 		}
 		else if ((*a_iter)< sextiles[4]){
 			current_r_int = (((*a_iter)-sextiles[3])/increment) * 255;
 			current_g_int = 255;
 			current_b_int = 0;
-			std::cout << "sextiles[4]\t";// << std::endl;
+			// std::cout << "sextiles[4]\t";// << std::endl;
 		}
 		else if ((*a_iter)< sextiles[5]){
 			current_r_int = 255;
 			current_g_int = 255 - ((((*a_iter)-sextiles[4])/increment) * 255);
 			current_b_int = 0;
-			std::cout << "sextiles[5]\t";// << std::endl;
+			// std::cout << "sextiles[5]\t";// << std::endl;
 		}
 		else {
 			current_r_int = 255;
 			current_g_int = 0;
 			current_b_int = (((*a_iter)-sextiles[5])/increment) * 255;
-			std::cout << "sextiles[6]\t";// << std::endl;
+			// std::cout << "sextiles[6]\t";// << std::endl;
 		}
 
-		if (current_r_int > 255){
-			std::cout << "current_r_int: " << current_r_int << std::endl;
-		} if (current_g_int > 255){
-			std::cout << "current_g_int: " << current_g_int << std::endl;
-		} if (current_b_int > 255){
-			std::cout << "current_b_int: " << current_b_int << std::endl;
-		}
+		// if (current_r_int > 255){
+		// 	std::cout << "current_r_int: " << current_r_int;
+		// } if (current_g_int > 255){
+		// 	std::cout << "current_g_int: " << current_g_int;
+		// } if (current_b_int > 255){
+		// 	std::cout << "current_b_int: " << current_b_int;
+		// }
 
-		std::cout << std::endl;
+		//std::cout << std::endl;
 
 
 		current += decimalToHex(current_r_int) + decimalToHex(current_g_int) + decimalToHex(current_b_int);
@@ -133,9 +133,6 @@ int drawMap(vector< vector<float > > map, string filename){
 			min_weight = *map_iter;
 		}
 	}
-
-	std::cout << "max: " << max_weight << std::endl << "min: " << min_weight << std::endl;
-
 	string html = produceHTML(hexColourFromFloat(weight_map));
 	writeToFile(html, filename);
 	return 0;
