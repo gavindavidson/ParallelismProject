@@ -20,7 +20,7 @@ THINGS TO CONSIDER:
 #define neighbourhood_reduce_iteration 10
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 64
-#define tollerance 40
+#define tollerance 400
 #define input_size 10000
 #define input_vector_length 5
 
@@ -31,7 +31,7 @@ using std::string;
 
 float max, min, range;
 float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be applied to a change in a point in a neighbourhood
-
+int non_convergent_points = 0;
 
 float gauss_value = sqrt(map_side_size);
 float gauss_value_list[map_side_size];
@@ -107,12 +107,12 @@ bool convergent(){
 		}
 		map_iter++;
 		previous_map_iter++;
-		if (changed_points > tollerance){
-			previous_map = copyMap(map);
-			return false;
-		}
 	}
+	non_convergent_points = changed_points;
 	previous_map = copyMap(map);
+	if (changed_points > tollerance){
+		return false;
+	}
 	return true;
 }
 
@@ -259,7 +259,7 @@ int main(){
 		// cout << "<MAP>" << endl;
 		// print_map(map);
 		// cout << "</MAP>" << endl;
-		cout << "Iteration: " << i << endl;
+		cout << "Iteration: " << i << "\tNon convergent points: " << non_convergent_points << endl;
 		for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
 			winner = 0;
 			current = 0;
@@ -276,7 +276,9 @@ int main(){
 			updateWeights(winner, *input_iter);
 		}
 		if (i%neighbourhood_reduce_iteration == 0){
-			gauss_value = gauss_value/2;
+			if (gauss_value/2 > 0.2){
+				gauss_value = gauss_value/2;
+			}
 			std::ostringstream convert;   // stream used for the conversion
 			convert << i;      
 			drawMap(map, "map_draw/map" + convert.str() + ".html");
