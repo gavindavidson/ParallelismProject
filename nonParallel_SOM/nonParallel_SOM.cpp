@@ -17,10 +17,11 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 10
+#define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 64
-#define tollerance 400
+#define tollerance 40
+#define vector_convergence_tollerance 0.02
 #define input_size 10000
 #define input_vector_length 5
 
@@ -31,6 +32,7 @@ using std::string;
 
 float max, min, range;
 float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be applied to a change in a point in a neighbourhood
+
 int non_convergent_points = 0;
 
 float gauss_value = sqrt(map_side_size);
@@ -82,12 +84,14 @@ void print_map(vector<vector <float> > input){
 	}
 }
 
-bool vectorEqual(vector<float> a, vector<float> b){
+bool checkVectorConvergence(vector<float> a, vector<float> b){
 	vector<float>::iterator a_iter, b_iter;
 	a_iter = a.begin();
 	b_iter = b.begin();
+	float delta;
 	while (a_iter != a.end()){
-		if (*a_iter != *b_iter){
+		delta = (*a_iter) * vector_convergence_tollerance;
+		if ((*a_iter) - delta >= *b_iter || (*a_iter) + delta <= *b_iter){		// If b is not between a + tollernce and a - tollerence
 			return false;
 		}
 		a_iter++;
@@ -102,18 +106,15 @@ bool convergent(){
 	previous_map_iter = previous_map.begin();
 	int changed_points = 0;
 	while (map_iter != map.end()){
-		if (!vectorEqual(*map_iter, *previous_map_iter)){
+		if (!checkVectorConvergence(*map_iter, *previous_map_iter)){
 			changed_points++;
 		}
 		map_iter++;
 		previous_map_iter++;
 	}
-	non_convergent_points = changed_points;
 	previous_map = copyMap(map);
-	if (changed_points > tollerance){
-		return false;
-	}
-	return true;
+	non_convergent_points = changed_points;
+	return changed_points <= tollerance;
 }
 
 /*
@@ -234,6 +235,7 @@ int main(){
 			<< "\t- Neighbourhood reduce iteration\t" << neighbourhood_reduce_iteration << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
 			<< "\t- Convergence tollerance\t\t" << tollerance << endl
+			<< "\t- Vector convergence tollerance\t\t" << vector_convergence_tollerance << endl
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "==\t\t\t==" << endl;
@@ -276,9 +278,7 @@ int main(){
 			updateWeights(winner, *input_iter);
 		}
 		if (i%neighbourhood_reduce_iteration == 0){
-			if (gauss_value/2 > 0.2){
-				gauss_value = gauss_value/2;
-			}
+			gauss_value = gauss_value/2;
 			std::ostringstream convert;   // stream used for the conversion
 			convert << i;      
 			drawMap(map, "map_draw/map" + convert.str() + ".html");
@@ -288,5 +288,5 @@ int main(){
 	cout << "Convergent at iteration " << i << "!" << endl;
 	drawMap(map, "map_draw/convergent_map.html");
 	cout << "Visual representation stored at \"map_draw/convergent_map.html\"";
-	print_map(map);
+	//print_map(map);
 }
