@@ -3,6 +3,7 @@
 #include <vector>
 #include <new>
 #include <sstream>
+#include <ctime>
 //#include <cmath>
 //#include <algorithm>
 #include "../drawHTMLmap/drawHTMLMap.h"
@@ -19,10 +20,10 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
-#define tollerance 40
+#define map_side_size 128
+#define map_convergence_tollerance 0.1
 #define vector_convergence_tollerance 0.02
-#define input_size 10000
+#define input_size 25000
 #define input_vector_length 5
 
 using std::vector;
@@ -68,23 +69,47 @@ vector<vector <float> > initialiseRandomVectors(int map_size, int vector_length)
 	return output;
 }
 
+float * initialiseRandomVectorsArray(int map_size, int vector_length){
+	srand(time(NULL));				// Seed rand() with current time
+	float output[map_size * vector_length];
+	for (int i = 0; i < map_size * vector_length; i++){
+		output[i] = (rand()/(float)RAND_MAX) * range + min;
+	}
+	return output;
+}
+
 /*
 	Function outputs a string representation to cout of the map
 */
-void print_map(vector<vector <float> > input){
-	vector<vector <float> >::iterator map_iterator;
-	vector<float>::iterator vector_iterator;
-
-	for (map_iterator = input.begin(); map_iterator != input.end(); map_iterator++){
-		cout << "[ ";
-		for (vector_iterator = (*map_iterator).begin(); vector_iterator != (*map_iterator).end(); vector_iterator++){
-			cout << (*vector_iterator) << "\t";
+void print_map(float * input){
+	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
+		cout << input[i];
+		if (i % input_vector_length == 0){
+			cout << "]" << endl << "[";
 		}
-		cout << "]" << endl;
+		else {
+			cout << ",  \t";
+		}
 	}
 }
 
 bool checkVectorConvergence(vector<float> a, vector<float> b){
+	vector<float>::iterator a_iter, b_iter;
+	a_iter = a.begin();
+	b_iter = b.begin();
+	float delta;
+	while (a_iter != a.end()){
+		delta = (*a_iter) * vector_convergence_tollerance;
+		if ((*a_iter) - delta >= *b_iter || (*a_iter) + delta <= *b_iter){		// If b is not between a + tollernce and a - tollerence
+			return false;
+		}
+		a_iter++;
+		b_iter++;
+	}
+	return true;
+}
+
+bool checkArrayConvergence(vector<float> a, vector<float> b){
 	vector<float>::iterator a_iter, b_iter;
 	a_iter = a.begin();
 	b_iter = b.begin();
@@ -114,7 +139,7 @@ bool convergent(){
 	}
 	previous_map = copyMap(map);
 	non_convergent_points = changed_points;
-	return changed_points <= tollerance;
+	return changed_points <= map_convergence_tollerance*map.size();
 }
 
 /*
@@ -246,10 +271,17 @@ void updateWeights(int winner_index, vector<float> input_vector){
 }
 
 int main(){
+	cout << "== Stuff to do..\t ==" << endl
+			<< "\t- Make vectors into static arrays\t\t<IN PROGRESS>" << endl
+			<< "\t\t+ Arrays must be one dimensional" << endl
+			<< "\t\t+ Fix iteration" << endl
+			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
+			<< "\t- Separate loops" << endl
+			<< "==\t\t\t==\n" << endl;
 	cout << "== Single Threaded SOM \t==" << endl
 			<< "\t- Neighbourhood reduce iteration\t" << neighbourhood_reduce_iteration << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
-			<< "\t- Convergence tollerance\t\t" << tollerance << endl
+			<< "\t- Map convergence tollerance\t\t" << map_convergence_tollerance << endl
 			<< "\t- Vector convergence tollerance\t\t" << vector_convergence_tollerance << endl
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
@@ -276,7 +308,8 @@ int main(){
 		// cout << "<MAP>" << endl;
 		// print_map(map);
 		// cout << "</MAP>" << endl;
-		cout << "Iteration: " << i << "\tNon convergent points: " << non_convergent_points << endl;
+		time_t ctt = time(0);
+		cout << "Iteration: " << i << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&ctt));
 		for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
 			winner = 0;
 			current = 0;
