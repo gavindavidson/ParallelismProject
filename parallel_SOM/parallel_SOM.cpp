@@ -21,7 +21,7 @@ THINGS TO CONSIDER:
 #define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 128
-#define map_convergence_tollerance 0.1
+#define map_convergence_tollerance 0.02
 #define vector_convergence_tollerance 0.02
 #define input_size 25000
 #define input_vector_length 5
@@ -178,11 +178,11 @@ float manhattan_distance(vector<float> a, vector<float> b){
 	vector<float>::iterator a_iter = a.begin();
 	vector<float>::iterator b_iter = b.begin();
 	while (a_iter != a.end()){
-		sum += (*a_iter) - (*b_iter);
+		sum += abs(*a_iter) - abs(*b_iter);
 		a_iter++;
 		b_iter++;
 	}
-	return sqrt(sum);
+	return sum;
 }
 
 vector<float> vectorMultiplyScalar(vector<float> a, float b){
@@ -278,7 +278,7 @@ int main(){
 			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
 			<< "\t- Separate loops" << endl
 			<< "==\t\t\t==\n" << endl;
-	cout << "== Single Threaded SOM \t==" << endl
+	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Neighbourhood reduce iteration\t" << neighbourhood_reduce_iteration << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
 			<< "\t- Map convergence tollerance\t\t" << map_convergence_tollerance << endl
@@ -317,7 +317,13 @@ int main(){
 			winnerDistance = manhattan_distance(*input_iter, *(map.begin()));
 			
 			for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
-				possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
+				//possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
+				possible_winnerDistance = manhattan_distance(*input_iter, *map_iter);
+				// cout << "IN:";
+				// printVector(*input_iter);
+				// cout << " MAP:";
+				// printVector(*(map.begin()));
+				// cout << " = " << possible_winnerDistance << endl;
 				if (possible_winnerDistance < winnerDistance){
 					winnerDistance = possible_winnerDistance;
 					winner = current;
@@ -329,11 +335,11 @@ int main(){
 		}
 		if (i%neighbourhood_reduce_iteration == 0){
 			gauss_value = gauss_value/2;
-			std::ostringstream convert;   // stream used for the conversion
-			convert << i;      
-			drawMap(map, "map_draw/map" + convert.str() + ".html");
-			cout << "<map drawn>" << endl;
 		}
+		std::ostringstream convert;   // stream used for the conversion
+		convert << i;      
+		drawMap(map, "map_draw/map" + convert.str() + ".html");
+		cout << "<map drawn>" << endl;
 	}
 	cout << "Convergent at iteration " << i << "!" << endl;
 	drawMap(map, "map_draw/convergent_map.html");
