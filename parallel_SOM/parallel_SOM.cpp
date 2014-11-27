@@ -18,7 +18,7 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 20
+#define neighbourhood_reduce_iteration 8
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 128
 #define map_convergence_tollerance 0.02
@@ -42,6 +42,8 @@ const double pi = 3.14159265359;
 
 vector<vector <float> > map, previous_map;
 vector<vector <float> > input;
+
+float array_map[map_side_size*map_side_size*input_vector_length], array_previous_map[map_side_size*map_side_size*input_vector_length];
 
 vector<vector <float> > copyMap(vector<vector <float> > map){
 	vector<vector <float> > output;
@@ -109,20 +111,15 @@ bool checkVectorConvergence(vector<float> a, vector<float> b){
 	return true;
 }
 
-bool checkArrayConvergence(vector<float> a, vector<float> b){
-	vector<float>::iterator a_iter, b_iter;
-	a_iter = a.begin();
-	b_iter = b.begin();
+bool checkArrayConvergence(float *a, float *b, int start_index, int vector_size){
 	float delta;
-	while (a_iter != a.end()){
-		delta = (*a_iter) * vector_convergence_tollerance;
-		if ((*a_iter) - delta >= *b_iter || (*a_iter) + delta <= *b_iter){		// If b is not between a + tollernce and a - tollerence
+	for (int i = start_index; i < vector_size+start_index; i++){
+		delta = a[i] * vector_convergence_tollerance;
+		if (a[i] - delta >= b[i] || a[i] + delta <= b[i]){
 			return false;
 		}
-		a_iter++;
-		b_iter++;
 	}
-	return true;
+	return false;
 }
 
 bool convergent(){
@@ -140,6 +137,20 @@ bool convergent(){
 	previous_map = copyMap(map);
 	non_convergent_points = changed_points;
 	return changed_points <= map_convergence_tollerance*map.size();
+}
+
+bool arrayCovergent(){
+	int changed_points = 0;
+	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i + input_vector_length){
+		if (!checkArrayConvergence(array_map, array_previous_map, i, input_vector_length)){
+			changed_points++;
+		}
+	}
+	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
+		array_previous_map[i] = array_map[i];
+	}
+	non_convergent_points = changed_points;
+	return changed_points <= map_convergence_tollerance*map_side_size*map_side_size;
 }
 
 /*
@@ -170,6 +181,14 @@ float euclidean_distance(vector<float> a, vector<float> b){
 	return sqrt(sum);
 }
 
+float array_euclidean_distance(float *a, float *b, int start_index, int vector_size){
+	float sum = 0;
+	for (int i = start_index; i < vector_size+start_index; i++){
+		sum += pow(a[i] - b[i], 2);
+	}
+	return sqrt(sum);
+}
+
 /*
 	Function returns the manhattan distance between two vectors a and b
 */
@@ -185,6 +204,14 @@ float manhattan_distance(vector<float> a, vector<float> b){
 	return sum;
 }
 
+float array_manhattan_distance(float *a, float *b, int start_index, int vector_size){
+	float sum = 0;
+	for (int i = start_index; i < vector_size+start_index; i++){
+		sum += a[i] - b[i];
+	}
+	return sum;
+}
+
 vector<float> vectorMultiplyScalar(vector<float> a, float b){
 	vector<float> output;
 	vector<float>::iterator a_iter = a.begin();
@@ -192,6 +219,14 @@ vector<float> vectorMultiplyScalar(vector<float> a, float b){
 		output.push_back((*a_iter) * b);
 		//cout << (*a_iter) << " x " <<  b << " = " << (*a_iter) * b << endl;
 		a_iter++;
+	}
+	return output;
+}
+
+float * array_vectorMultiplyScalar(float *a, float b, int start_index, int vector_size){
+	float output[vector_size];
+	for (int i = start_index; i < start_index + vector_size; i++){
+		output[i] = a[i]*b;
 	}
 	return output;
 }
@@ -208,6 +243,14 @@ vector<float> vectorSubtract(vector<float> a, vector<float> b){
 	return output;
 }
 
+float * array_vectorSubtract(float *a, float *b, int start_index, int vector_size){
+	float output[vector_size];
+	for (int i = start_index; i < start_index + vector_size; i++){
+		output[i] = a[i] - b[i];
+	}
+	return output;
+}
+
 vector<float> vectorAdd(vector<float> a, vector<float> b){
 	vector<float> output;
 	vector<float>::iterator a_iter = a.begin();
@@ -216,6 +259,14 @@ vector<float> vectorAdd(vector<float> a, vector<float> b){
 		output.push_back((*a_iter) + (*b_iter));
 		a_iter++;
 		b_iter++;
+	}
+	return output;
+}
+
+float * array_vectorAdd(float *a, float *b, int start_index, int vector_size){
+	float output[vector_size];
+	for (int i = start_index; i < start_index + vector_size; i++){
+		output[i] = a[i] + b[i];
 	}
 	return output;
 }
@@ -246,27 +297,32 @@ int determineSteps(int a, int b){
 	using the 
 */
 void updateWeights(int winner_index, vector<float> input_vector){
-	int current_index = 0;
+	//int current_index = 0;
 	int current_pos, neighbourhood_value;
 	int map_size = map.size();
 	for (vector< vector<float> >::iterator map_iter = map.begin(); map_iter != map.end(); map_iter++){
 		current_pos = map_iter - map.end() + map_size;
 		neighbourhood_value = determineSteps(current_pos, winner_index);
 		if (gauss_value_list[neighbourhood_value] >= min_neighbourhood_effect){
-			// cout << "Original value:\t";
-			// printVector(*map_iter);
-			// cout << "Input vector:\t";
-			// printVector(input_vector);
-			// cout << "Gauss value at " << neighbourhood_value << " steps from winner" 
-			// 		<< ":\t" << gauss_value_list[neighbourhood_value] << endl << "New value:\t\t";
 			(*map_iter) = vectorSubtract(*map_iter, vectorMultiplyScalar(vectorSubtract(*map_iter, input_vector),gauss_value_list[neighbourhood_value]));
-			// printVector(*map_iter);
-			// cout << endl;
-			//printVector(*map_iter);
 			/*
 				current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
 			*/
 		}
+	}
+}
+
+void array_updateWeights(int winner_index, float *input_array, int input_start_index, int vector_size){
+	int current_pos, neighbourhood_value;
+	int map_size = map_side_size*map_side_size*vector_size;
+	int input_offset = 0;
+	for (int map_index = 0; map_index < map_size; map_index++){
+		neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
+		array_map[map_index] = array_map[map_index] - 
+			((array_map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+		/*
+			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
+		*/
 	}
 }
 
