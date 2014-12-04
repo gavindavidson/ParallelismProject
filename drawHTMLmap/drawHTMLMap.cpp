@@ -40,7 +40,7 @@ vector<string> hexColourFromFloat(vector<float> a){
 		if ((*a_iter) < sextiles[1]){
 			current_r_int = 0;
 			current_g_int = 0;
-			current_b_int = ((*a_iter)/increment) * 255;
+			current_b_int = (((*a_iter)-sextiles[0])/increment) * 255;
 			//std::cout << "sextiles[1]\t";// << std::endl;
 		}
 		else if ((*a_iter) < sextiles[2]){
@@ -72,6 +72,15 @@ vector<string> hexColourFromFloat(vector<float> a){
 			current_g_int = 0;
 			current_b_int = (((*a_iter)-sextiles[5])/increment) * 255;
 			// std::cout << "sextiles[6]\t";// << std::endl;
+		}
+		if (current_b_int > 255 && (*a_iter) < sextiles[1]){
+			std::cout << "VAL:" << *a_iter << "\tMAX:" << max_weight << 
+				"\t" << current_r_int << ", " << current_g_int << ", " << current_b_int << std::endl;
+			std::cout << "SEXTILES: ";
+			for (int i = 0; i < 6; i++){
+				std::cout << sextiles[i] << ",\t";
+			}
+			std::cout << std::endl;
 		}
 
 		// if (current_r_int > 255){
@@ -113,13 +122,26 @@ int writeToFile(string contents, string filename){
 	return 0;
 }
 
+int drawMap(float *map, int map_size, int vector_length, string filename){
+	vector< vector <float> > vector_map;
+	vector<float> current_vector;
+	for (int i = 0; i < map_size*vector_length; i++){
+		if (i%vector_length == 0 && i!=0){
+			vector_map.push_back(current_vector);
+			current_vector.clear();
+		}
+		current_vector.push_back(map[i]);
+	}
+	vector_map.push_back(current_vector);
+	drawMap(vector_map, filename);
+}
+
 int drawMap(vector< vector<float > > map, string filename){
 	map_side_size = sqrt((int)map.size());
 	map_vector_size = (map.at(0)).size();
 	min_weight = FLT_MAX;
 	max_weight = FLT_MIN;
 	vector<float> weight_map;
-
 	for (vector< vector <float> >::iterator map_iter = map.begin(); map_iter != map.end(); map_iter++){
 		weight_map.push_back(euclidean_distance_from_origin(*map_iter));
 	}

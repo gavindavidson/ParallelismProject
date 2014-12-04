@@ -20,10 +20,10 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 128
 #define map_convergence_tollerance 0.02
 #define vector_convergence_tollerance 0.02
-#define input_size 9096
+#define input_size 25000
 #define input_vector_length 5
 
 using std::vector;
@@ -462,7 +462,8 @@ int main(){
 		//printArray(array_map, map_side_size*map_side_size*input_vector_length, input_vector_length);
 		std::ostringstream convert;   // stream used for the conversion
 		convert << iteration;      
-		//drawMap(map, "map_draw/map" + convert.str() + ".html");
+		drawMap(array_map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
+		cout << "<map drawn>" << endl;
 	}
 	cout << "Convergent at iteration " << iteration << "!" << endl;
 	//drawMap(map, "map_draw/convergent_map.html");
