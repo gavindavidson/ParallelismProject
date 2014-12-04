@@ -16,12 +16,12 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 20
+#define neighbourhood_reduce_iteration 40
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 32
+#define map_side_size 16
 #define map_convergence_tollerance 0.02
 #define vector_convergence_tollerance 0.02
-#define input_size 4096
+#define input_size 2048
 #define input_vector_length 5
 
 using std::vector;
@@ -38,8 +38,9 @@ float gauss_value = sqrt(map_side_size);
 float gauss_value_list[map_side_size];
 const double pi = 3.14159265359;
 
-float *map, *input;
-float previous_map[map_side_size*map_side_size*input_vector_length];
+float *map, *input, *previous_map, *distance_map;
+// float previous_map[map_side_size*map_side_size*input_vector_length];
+// float distance_map[map_side_size*map_side_size];
 
 /*
 	Function outputs a string representation to cout of the map
@@ -61,7 +62,7 @@ void printArray(float *array, int size, int grouping){
 	for (int i = 0; i < size; i++){
 		cout << array[i] << ", ";
 		if (i % grouping == 0){
-			cout << "]" << endl << "	[";
+			cout << "]" << endl << i/grouping << "[";
 		}
 	}
 	cout << "]";
@@ -205,6 +206,9 @@ int main(){
 	max = 10000;
 	range = max - min;
 
+	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
+	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+
 	map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
 		previous_map[i] = map[i];
@@ -216,26 +220,39 @@ int main(){
 
 	int winner, current;
 	int iteration;
-	int total_map_values = map_side_size*map_side_size;
+	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	int total_input_values = input_size*input_vector_length;
 
-	float winnerDistance, possible_winnerDistance;
 	for (iteration = 0; !convergent() || iteration == 0; iteration++){
 		time_t current_time = time(0);
 		cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			winner = 0;
 			// float *a, float *b, int a_start_index, int b_start_index, int vector_size
+			float winnerDistance, possible_winnerDistance;
 			winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
-			for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){
-				possible_winnerDistance = euclidean_distance(map, input, map_index, input_index, input_vector_length);
-				if (possible_winnerDistance < winnerDistance){
-					winnerDistance = possible_winnerDistance;
-					winner = map_index;
+			for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
+				distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+				// possible_winnerDistance  = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+				// if (possible_winnerDistance < winnerDistance){
+				// 	winnerDistance = possible_winnerDistance;
+				// 	winner = map_index/input_vector_length;
+				// }
+			}
+			//printArray(map, total_map_values, input_vector_length);
+			//cout << endl;
+			for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
+				//cout << distance_map[distance_index] << "\t";
+				if (distance_map[distance_index] < winnerDistance){
+					winnerDistance = distance_map[distance_index];
+					winner = distance_index;
+					//cout << "Winner update: " << winner << "\t" << "value: " << distance_map[winner] << "\n";
 				}
 			}
+			//cout << endl << "===" << endl;
 			// int winner_index, float *input_array, int vector_size
 			updateWeights(winner, input, input_vector_length);
+			//cout << "WINNER: " << winner << "\tVALUE: " << distance_map[winner/input_vector_length] << endl;
 		}
 		if (iteration%neighbourhood_reduce_iteration==0 && iteration != 0){
 			if (gauss_value > 1){

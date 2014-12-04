@@ -19,7 +19,7 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 128
+#define map_side_size 32
 #define tollerance 100
 #define vector_convergence_tollerance 0.02
 #define input_size 25000
