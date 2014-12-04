@@ -18,12 +18,12 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 8
+#define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 128
+#define map_side_size 64
 #define map_convergence_tollerance 0.02
 #define vector_convergence_tollerance 0.02
-#define input_size 25000
+#define input_size 9096
 #define input_vector_length 5
 
 using std::vector;
@@ -43,7 +43,10 @@ const double pi = 3.14159265359;
 vector<vector <float> > map, previous_map;
 vector<vector <float> > input;
 
-float array_map[map_side_size*map_side_size*input_vector_length], array_previous_map[map_side_size*map_side_size*input_vector_length];
+// float array_map[map_side_size*map_side_size*input_vector_length], array_previous_map[map_side_size*map_side_size*input_vector_length];
+// float array_input[map_side_size*map_side_size*input_vector_length];
+float *array_map, *array_input;
+float array_previous_map[map_side_size*map_side_size*input_vector_length];
 
 vector<vector <float> > copyMap(vector<vector <float> > map){
 	vector<vector <float> > output;
@@ -71,15 +74,6 @@ vector<vector <float> > initialiseRandomVectors(int map_size, int vector_length)
 	return output;
 }
 
-float * initialiseRandomVectorsArray(int map_size, int vector_length){
-	srand(time(NULL));				// Seed rand() with current time
-	float output[map_size * vector_length];
-	for (int i = 0; i < map_size * vector_length; i++){
-		output[i] = (rand()/(float)RAND_MAX) * range + min;
-	}
-	return output;
-}
-
 /*
 	Function outputs a string representation to cout of the map
 */
@@ -94,6 +88,28 @@ void print_map(float * input){
 		}
 	}
 }
+
+void printArray(float *array, int size, int grouping){
+	cout << "[";
+	for (int i = 0; i < size; i++){
+		cout << array[i] << ", ";
+		if (i % grouping == 0){
+			cout << "]" << endl << "	[";
+		}
+	}
+	cout << "]";
+}
+
+float * initialiseRandomVectorsArray(int map_size, int vector_length){
+	srand(time(NULL));				// Seed rand() with current time
+	//float output[map_size * vector_length];
+	float *output = (float *)malloc(map_size*vector_length*sizeof(float));
+	for (int i = 0; i < map_size * vector_length; i++){
+		output[i] = (rand()/(float)RAND_MAX) * range + min;
+	}
+	return output;
+}
+
 
 bool checkVectorConvergence(vector<float> a, vector<float> b){
 	vector<float>::iterator a_iter, b_iter;
@@ -119,7 +135,7 @@ bool checkArrayConvergence(float *a, float *b, int start_index, int vector_size)
 			return false;
 		}
 	}
-	return false;
+	return true;
 }
 
 bool convergent(){
@@ -141,7 +157,7 @@ bool convergent(){
 
 bool arrayCovergent(){
 	int changed_points = 0;
-	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i + input_vector_length){
+	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i = i + input_vector_length){
 		if (!checkArrayConvergence(array_map, array_previous_map, i, input_vector_length)){
 			changed_points++;
 		}
@@ -181,10 +197,12 @@ float euclidean_distance(vector<float> a, vector<float> b){
 	return sqrt(sum);
 }
 
-float array_euclidean_distance(float *a, float *b, int start_index, int vector_size){
+float array_euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 	float sum = 0;
-	for (int i = start_index; i < vector_size+start_index; i++){
-		sum += pow(a[i] - b[i], 2);
+	int b_index = b_start_index;
+	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
+		sum += pow(a[a_index] - b[b_index], 2);
+		b_index++;
 	}
 	return sqrt(sum);
 }
@@ -204,10 +222,12 @@ float manhattan_distance(vector<float> a, vector<float> b){
 	return sum;
 }
 
-float array_manhattan_distance(float *a, float *b, int start_index, int vector_size){
+float array_manhattan_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 	float sum = 0;
-	for (int i = start_index; i < vector_size+start_index; i++){
-		sum += a[i] - b[i];
+	int b_index = b_start_index;
+	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
+		sum += a[a_index] - b[b_index];
+		b_index++;
 	}
 	return sum;
 }
@@ -312,27 +332,31 @@ void updateWeights(int winner_index, vector<float> input_vector){
 	}
 }
 
-void array_updateWeights(int winner_index, float *input_array, int input_start_index, int vector_size){
+void array_updateWeights(int winner_index, float *input_array, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
 	int input_offset = 0;
 	for (int map_index = 0; map_index < map_size; map_index++){
+		// map_index/vector_size means that neighbourhood value is the same for a 'single vector' within the whole map array
 		neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
+		//cout << map_index << ":\told value: " << array_map[map_index];
 		array_map[map_index] = array_map[map_index] - 
-			((array_map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+			((array_map[map_index] - input_array[winner_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+		//cout << "\tnew value: " << array_map[map_index] << endl;
 		/*
 			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
 		*/
 	}
+	//cout << "\n=====\n";
 }
 
 int main(){
 	cout << "== Stuff to do..\t ==" << endl
-			<< "\t- Make vectors into static arrays\t\t<IN PROGRESS>" << endl
+			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
 			<< "\t\t+ Arrays must be one dimensional" << endl
 			<< "\t\t+ Fix iteration" << endl
 			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
-			<< "\t- Separate loops" << endl
+			<< "\t- Separate loops\t\t\t\t<IN PROGRESS>" << endl
 			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Neighbourhood reduce iteration\t" << neighbourhood_reduce_iteration << endl
@@ -346,59 +370,109 @@ int main(){
 	min = 0;
 	max = 10000;
 	range = max - min;
-	map = initialiseRandomVectors(map_side_size*map_side_size, input_vector_length);
-	previous_map = copyMap(map);
 
-	drawMap(map, "map_draw/initial_map.html");
+	array_map = initialiseRandomVectorsArray(map_side_size*map_side_size, input_vector_length);
+	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
+		array_previous_map[i] = array_map[i];
+	}
+	array_input = initialiseRandomVectorsArray(input_size, input_vector_length);
+
+	//drawMap(map, "map_draw/initial_map.html");
 	recalculateGaussList();
 
-	input = initialiseRandomVectors(input_size, input_vector_length);
+	// map = initialiseRandomVectors(map_side_size*map_side_size, input_vector_length);
+	// previous_map = copyMap(map);
+	// input = initialiseRandomVectors(input_size, input_vector_length);
+	// vector< vector <float> >::iterator map_iter, input_iter;
 
-	vector< vector <float> >::iterator map_iter, input_iter;
+	//float winnerDistance, possible_winnerDistance;
+	//int winner, current;
+	//while (!convergent()){
+	// for (i = 0; !convergent() || i == 0; i++){
+	// 	// cout << "<MAP>" << endl;
+	// 	// print_map(map);
+	// 	// cout << "</MAP>" << endl;
+	// 	time_t ctt = time(0);
+	// 	cout << "Iteration: " << i << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&ctt));
+	// 	for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
+	// 		winner = 0;
+	// 		current = 0;
+	// 		winnerDistance = euclidean_distance(*input_iter, *(map.begin()));
+	// 		//winnerDistance = manhattan_distance(*input_iter, *(map.begin()));
+			
+	// 		for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
+	// 			possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
+	// 			//possible_winnerDistance = manhattan_distance(*input_iter, *map_iter);
+	// 			// cout << "IN:";
+	// 			// printVector(*input_iter);
+	// 			// cout << " MAP:";
+	// 			// printVector(*(map.begin()));
+	// 			// cout << " = " << possible_winnerDistance << endl;
+	// 			if (possible_winnerDistance < winnerDistance){
+	// 				winnerDistance = possible_winnerDistance;
+	// 				winner = current;
+	// 			}
+	// 			current++;
+	// 		}
+	// 		//cout << input_iter - input.end() + input.size() << endl;
+	// 		updateWeights(winner, *input_iter);
+	// 	}
+	// 	if (i%neighbourhood_reduce_iteration == 0){
+	// 		gauss_value = gauss_value/2;
+	// 	}
+	// 	std::ostringstream convert;   // stream used for the conversion
+	// 	convert << i;      
+	// 	drawMap(map, "map_draw/map" + convert.str() + ".html");
+	// 	cout << "<map drawn>" << endl;
+	// }
+	int winner, current;
+	int iteration;
+	int total_map_values = map_side_size*map_side_size;
+	int total_input_values = input_size*input_vector_length;
 
 	float winnerDistance, possible_winnerDistance;
-	int winner, current;
-	//while (!convergent()){
-	int i;
-	for (i = 0; !convergent() || i == 0; i++){
-		// cout << "<MAP>" << endl;
-		// print_map(map);
-		// cout << "</MAP>" << endl;
-		time_t ctt = time(0);
-		cout << "Iteration: " << i << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&ctt));
-		for (input_iter = input.begin(); input_iter != input.end(); input_iter++){
+	for (iteration = 0; !arrayCovergent() || iteration == 0; iteration++){
+		time_t current_time = time(0);
+		cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
+		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			winner = 0;
-			current = 0;
-			//winnerDistance = euclidean_distance(*input_iter, *(map.begin()));
-			winnerDistance = manhattan_distance(*input_iter, *(map.begin()));
-			
-			for (map_iter = map.begin(); map_iter != map.end(); map_iter++){
-				//possible_winnerDistance = euclidean_distance(*input_iter, *map_iter);
-				possible_winnerDistance = manhattan_distance(*input_iter, *map_iter);
-				// cout << "IN:";
-				// printVector(*input_iter);
-				// cout << " MAP:";
-				// printVector(*(map.begin()));
-				// cout << " = " << possible_winnerDistance << endl;
+			// float *a, float *b, int a_start_index, int b_start_index, int vector_size
+			winnerDistance = array_euclidean_distance(array_map, array_input, 0, input_index, input_vector_length);
+			for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){
+				possible_winnerDistance = array_euclidean_distance(array_map, array_input, map_index, input_index, input_vector_length);
 				if (possible_winnerDistance < winnerDistance){
 					winnerDistance = possible_winnerDistance;
-					winner = current;
+					winner = map_index;
 				}
-				current++;
 			}
-			//cout << input_iter - input.end() + input.size() << endl;
-			updateWeights(winner, *input_iter);
+			// int winner_index, float *input_array, int vector_size
+			array_updateWeights(winner, array_input, input_vector_length);
 		}
-		if (i%neighbourhood_reduce_iteration == 0){
-			gauss_value = gauss_value/2;
+		if (iteration%neighbourhood_reduce_iteration==0 && iteration != 0){
+			if (gauss_value > 1){
+				gauss_value--;
+				cout << "Neighbourhood reduced!\t";
+			}
+			else if (gauss_value >= 0.5){
+				gauss_value -= 0.1;
+				cout << "Neighbourhood reduced!\t";
+			}
+			recalculateGaussList();
 		}
+		//printArray(array_map, map_side_size*map_side_size*input_vector_length, input_vector_length);
 		std::ostringstream convert;   // stream used for the conversion
-		convert << i;      
-		drawMap(map, "map_draw/map" + convert.str() + ".html");
-		cout << "<map drawn>" << endl;
+		convert << iteration;      
+		//drawMap(map, "map_draw/map" + convert.str() + ".html");
 	}
-	cout << "Convergent at iteration " << i << "!" << endl;
-	drawMap(map, "map_draw/convergent_map.html");
+	cout << "Convergent at iteration " << iteration << "!" << endl;
+	//drawMap(map, "map_draw/convergent_map.html");
 	cout << "Visual representation stored at \"map_draw/convergent_map.html\"";
 	//print_map(map);
+	// **** 0.4 is the min gauss value.
+	// gauss_value = 2;
+	// for (int i = 0; gauss_value_list[0] <= 1; i++){
+	// 	gauss_value = gauss_value - (0.1);
+	// 	recalculateGaussList();
+	// 	cout << "\ngauss_value: " << gauss_value << "\tgauss_list: " << "[" << gauss_value_list[0] << "," << gauss_value_list[1] << "," << gauss_value_list[2] << "," << gauss_value_list[3] << "]";
+	// }
 }
