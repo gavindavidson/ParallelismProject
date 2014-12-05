@@ -16,13 +16,13 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 40
+#define neighbourhood_reduce_iteration 2
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 16
 #define map_convergence_tollerance 0.02
 #define vector_convergence_tollerance 0.02
-#define input_size 2048
-#define input_vector_length 5
+#define input_size 4096
+#define input_vector_length 1
 
 using std::vector;
 using std::cout;
@@ -122,7 +122,7 @@ void recalculateGaussList(){
 float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 	float sum = 0;
 	int b_index = b_start_index;
-	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
+	for (int a_index = a_start_index; a_index < vector_size + a_start_index; a_index++){
 		sum += pow(a[a_index] - b[b_index], 2);
 		b_index++;
 	}
@@ -170,19 +170,18 @@ int determineSteps(int a, int b){
 void updateWeights(int winner_index, float *input_array, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
-	int input_offset = 0;
 	for (int map_index = 0; map_index < map_size; map_index++){
 		// map_index/vector_size means that neighbourhood value is the same for a 'single vector' within the whole map array
 		neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
-		//cout << map_index << ":\told value: " << map[map_index];
+		cout << map_index << ":\told value: " << map[map_index];
 		map[map_index] = map[map_index] - 
 			((map[map_index] - input_array[winner_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
-		//cout << "\tnew value: " << map[map_index] << endl;
+		cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[winner_index] << "\tW_index: " << winner_index << endl;
 		/*
 			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
 		*/
 	}
-	//cout << "\n=====\n";
+	cout << "\n\n=====\n\n";
 }
 
 int main(){
@@ -233,6 +232,7 @@ int main(){
 			winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
 			for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
 				distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+				//cout << "DST from " << map[map_index] << " to " << input[input_index] << " is " << distance_map[map_index/input_vector_length] << endl;
 				// possible_winnerDistance  = euclidean_distance(map, input, map_index, input_index, input_vector_length);
 				// if (possible_winnerDistance < winnerDistance){
 				// 	winnerDistance = possible_winnerDistance;
@@ -242,13 +242,14 @@ int main(){
 			//printArray(map, total_map_values, input_vector_length);
 			//cout << endl;
 			for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
-				//cout << distance_map[distance_index] << "\t";
+				//cout << distance_index << ": " << distance_map[distance_index] << "\t";
 				if (distance_map[distance_index] < winnerDistance){
 					winnerDistance = distance_map[distance_index];
 					winner = distance_index;
 					//cout << "Winner update: " << winner << "\t" << "value: " << distance_map[winner] << "\n";
 				}
 			}
+			//cout << "Winner: " << winner << "\n===" << endl;
 			//cout << endl << "===" << endl;
 			// int winner_index, float *input_array, int vector_size
 			updateWeights(winner, input, input_vector_length);
