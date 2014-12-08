@@ -16,13 +16,13 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 2
+#define neighbourhood_reduce_iteration 30
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
-#define map_convergence_tollerance 0.02
-#define vector_convergence_tollerance 0.02
-#define input_size 4096
-#define input_vector_length 1
+#define map_side_size 64
+#define map_convergence_tollerance 0.00
+#define vector_convergence_tollerance 0.005
+#define input_size 12000
+#define input_vector_length 3
 
 using std::vector;
 using std::cout;
@@ -60,9 +60,12 @@ void print_map(float * input){
 void printArray(float *array, int size, int grouping){
 	cout << "[";
 	for (int i = 0; i < size; i++){
-		cout << array[i] << ", ";
 		if (i % grouping == 0){
 			cout << "]" << endl << i/grouping << "[";
+		}
+		cout << array[i];
+		if (i % grouping != grouping - 1){
+			cout  << ", ";
 		}
 	}
 	cout << "]";
@@ -111,6 +114,12 @@ void recalculateGaussList(){
 	//cout << "New gauss_value_list:\n[";
 	for (int x = 0; x < map_side_size; x++){
 		gauss_value_list[x] = a* exp(-(pow(x, 2)/(2*pow(gauss_value, 2))));
+		// if (x == 0){
+		// 	gauss_value_list[x] = 1;
+		// }
+		// else {
+		// 	gauss_value_list[x] = 0;
+		// }
 		//cout << gauss_value_list[x] << " ";
 	}
 	//cout << "]\n";
@@ -167,21 +176,21 @@ int determineSteps(int a, int b){
 	Function that changes the weights of the map according to their position relative to the winning point and the input vector. This is done
 	using the 
 */
-void updateWeights(int winner_index, float *input_array, int vector_size){
+void updateWeights(int winner_index, float *input_array, int input_start_index, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
 	for (int map_index = 0; map_index < map_size; map_index++){
 		// map_index/vector_size means that neighbourhood value is the same for a 'single vector' within the whole map array
 		neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
-		cout << map_index << ":\told value: " << map[map_index];
+		//cout << endl << map_index << ":\told value: " << map[map_index];
 		map[map_index] = map[map_index] - 
-			((map[map_index] - input_array[winner_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
-		cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[winner_index] << "\tW_index: " << winner_index << endl;
+				((map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+		//cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[input_start_index] << "\tW_index: " << winner_index << endl;
 		/*
 			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
 		*/
 	}
-	cout << "\n\n=====\n\n";
+	//cout << "\n\n=====\n\n";
 }
 
 int main(){
@@ -252,25 +261,35 @@ int main(){
 			//cout << "Winner: " << winner << "\n===" << endl;
 			//cout << endl << "===" << endl;
 			// int winner_index, float *input_array, int vector_size
-			updateWeights(winner, input, input_vector_length);
+			//cout << endl << "WINNER: " << winner << endl << "INPUT: [" << input[input_index] << "]";
+			updateWeights(winner, input, input_index, input_vector_length);
 			//cout << "WINNER: " << winner << "\tVALUE: " << distance_map[winner/input_vector_length] << endl;
 		}
 		if (iteration%neighbourhood_reduce_iteration==0 && iteration != 0){
 			if (gauss_value > 1){
 				gauss_value--;
-				cout << "Neighbourhood reduced!\t";
+				cout << "Neighbourhood reduced\t";
+				recalculateGaussList();
 			}
 			else if (gauss_value >= 0.5){
 				gauss_value -= 0.1;
-				cout << "Neighbourhood reduced!\t";
+				cout << "Neighbourhood reduced\t";
+				recalculateGaussList();
 			}
-			recalculateGaussList();
+			else {
+				gauss_value_list[0] = 1;
+				for (int i = 1; i < map_side_size; i++){
+					gauss_value_list[i] = 0;
+				}
+				cout << "Final neighbourhood neighbourhood_reduce_iteration\t";
+			}
+			std::ostringstream convert;   // stream used for the conversion
+			convert << iteration;      
+			drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
+			cout << "<map drawn>" << endl;
 		}
 		//printArray(map, map_side_size*map_side_size*input_vector_length, input_vector_length);
-		std::ostringstream convert;   // stream used for the conversion
-		convert << iteration;      
-		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
-		cout << "<map drawn>" << endl;
+
 	}
 	cout << "Convergent at iteration " << iteration << "!" << endl;
 	drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");

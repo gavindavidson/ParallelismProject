@@ -22,7 +22,7 @@ THINGS TO CONSIDER:
 #define map_side_size 32
 #define tollerance 100
 #define vector_convergence_tollerance 0.02
-#define input_size 25000
+#define input_size 9192
 #define input_vector_length 5
 
 using std::vector;
