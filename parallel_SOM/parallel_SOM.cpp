@@ -18,10 +18,10 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 30
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 128
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.005
-#define input_size 12000
+#define input_size 25000
 #define input_vector_length 3
 
 using std::vector;
@@ -222,6 +222,13 @@ int main(){
 		previous_map[i] = map[i];
 	}
 	input = initialiseRandomArray(input_size, input_vector_length);
+	// for (int i = 0; i < map_side_size*map_side_size; i++){
+	// 	cout << input[i] << "\t";
+	// 	if (i % input_vector_length == 0 && i != 0){
+	// 		cout << endl;
+	// 	}
+	// }
+
 
 	drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 	recalculateGaussList();
@@ -232,6 +239,7 @@ int main(){
 	int total_input_values = input_size*input_vector_length;
 
 	for (iteration = 0; !convergent() || iteration == 0; iteration++){
+	// for (iteration = 0; iteration == 0; iteration++){
 		time_t current_time = time(0);
 		cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
@@ -275,13 +283,6 @@ int main(){
 				gauss_value -= 0.1;
 				cout << "Neighbourhood reduced\t";
 				recalculateGaussList();
-			}
-			else {
-				gauss_value_list[0] = 1;
-				for (int i = 1; i < map_side_size; i++){
-					gauss_value_list[i] = 0;
-				}
-				cout << "Final neighbourhood neighbourhood_reduce_iteration\t";
 			}
 			std::ostringstream convert;   // stream used for the conversion
 			convert << iteration;      
