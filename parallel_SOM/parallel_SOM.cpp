@@ -18,9 +18,9 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 32
 #define map_convergence_tollerance 0.00
-#define vector_convergence_tollerance 0.00
+#define vector_convergence_tollerance 0.000000001
 #define input_size 15000
 #define input_vector_length 3
 
@@ -205,13 +205,49 @@ void updateWeights(int winner_index, float *input_array, int input_start_index, 
 	//cout << "\n\n=====\n\n";
 }
 
+int findWinner(int input_index){
+	int winner;
+	int total_map_values = map_side_size*map_side_size*input_vector_length;
+	float winnerDistance, possible_winnerDistance;
+	winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
+	for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
+		distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+	}
+	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
+		if (distance_map[distance_index] < winnerDistance){
+			winnerDistance = distance_map[distance_index];
+			winner = distance_index;
+		}
+	}
+	return winner;
+}
+
+float quantisationError(int input_index){
+	int winner = findWinner(input_index);
+	float total_error_percentage = 0;
+	float percentage;
+	for (int i = 0; i < input_vector_length; i++){
+		percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
+		if (percentage >= 0){
+			total_error_percentage += percentage;
+		}
+		else {
+			total_error_percentage -= percentage;
+		}
+	}
+	return total_error_percentage/input_vector_length;
+}
+
 int main(){
 	cout << "== Stuff to do..\t ==" << endl
 			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
 			<< "\t\t+ Arrays must be one dimensional" << endl
 			<< "\t\t+ Fix iteration" << endl
 			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
-			<< "\t- Separate loops\t\t\t\t<IN PROGRESS>" << endl
+			<< "\t- Separate loops\t\t\t\t<DONE>" << endl
+			<< "\t- Set up optimal map finding\t\t\t<IN PROGRESS>" << endl
+			<< "\t\t+ Set up quantisation error checker" << endl
+			<< "\t\t+ Set up repeated map building routine" << endl
 			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Neighbourhood reduce iteration\t" << neighbourhood_reduce_iteration << endl
@@ -255,29 +291,30 @@ int main(){
 		time_t current_time = time(0);
 		cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
-			winner = 0;
-			// float *a, float *b, int a_start_index, int b_start_index, int vector_size
-			float winnerDistance, possible_winnerDistance;
-			winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
-			for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
-				distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
-				//cout << "DST from " << map[map_index] << " to " << input[input_index] << " is " << distance_map[map_index/input_vector_length] << endl;
-				// possible_winnerDistance  = euclidean_distance(map, input, map_index, input_index, input_vector_length);
-				// if (possible_winnerDistance < winnerDistance){
-				// 	winnerDistance = possible_winnerDistance;
-				// 	winner = map_index/input_vector_length;
-				// }
-			}
-			//printArray(map, total_map_values, input_vector_length);
-			//cout << endl;
-			for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
-				//cout << distance_index << ": " << distance_map[distance_index] << "\t";
-				if (distance_map[distance_index] < winnerDistance){
-					winnerDistance = distance_map[distance_index];
-					winner = distance_index;
-					//cout << "Winner update: " << winner << "\t" << "value: " << distance_map[winner] << "\n";
-				}
-			}
+			winner = findWinner(input_index);
+			// winner = 0;
+			// // float *a, float *b, int a_start_index, int b_start_index, int vector_size
+			// float winnerDistance, possible_winnerDistance;
+			// winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
+			// for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
+			// 	distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+			// 	//cout << "DST from " << map[map_index] << " to " << input[input_index] << " is " << distance_map[map_index/input_vector_length] << endl;
+			// 	// possible_winnerDistance  = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+			// 	// if (possible_winnerDistance < winnerDistance){
+			// 	// 	winnerDistance = possible_winnerDistance;
+			// 	// 	winner = map_index/input_vector_length;
+			// 	// }
+			// }
+			// //printArray(map, total_map_values, input_vector_length);
+			// //cout << endl;
+			// for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
+			// 	//cout << distance_index << ": " << distance_map[distance_index] << "\t";
+			// 	if (distance_map[distance_index] < winnerDistance){
+			// 		winnerDistance = distance_map[distance_index];
+			// 		winner = distance_index;
+			// 		//cout << "Winner update: " << winner << "\t" << "value: " << distance_map[winner] << "\n";
+			// 	}
+			// }
 			//cout << "Winner: " << winner << "\n===" << endl;
 			//cout << endl << "===" << endl;
 			// int winner_index, float *input_array, int vector_size
@@ -310,6 +347,11 @@ int main(){
 	}
 	cout << "Convergent at iteration " << iteration << "!" << endl;
 	drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");
+	float total_quantisation_error = 0;
+	for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
+		total_quantisation_error += quantisationError(input_index);
+	}
+	cout << "Average Quantisation Error: " << total_quantisation_error/input_size << "%" << endl;
 	cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	//print_map(map);
 	// **** 0.4 is the min gauss value.
