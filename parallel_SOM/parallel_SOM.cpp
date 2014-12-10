@@ -16,12 +16,12 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define neighbourhood_reduce_iteration 30
+#define neighbourhood_reduce_iteration 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 128
+#define map_side_size 64
 #define map_convergence_tollerance 0.00
-#define vector_convergence_tollerance 0.005
-#define input_size 25000
+#define vector_convergence_tollerance 0.00
+#define input_size 15000
 #define input_vector_length 3
 
 using std::vector;
@@ -123,6 +123,18 @@ void recalculateGaussList(){
 		//cout << gauss_value_list[x] << " ";
 	}
 	//cout << "]\n";
+}
+
+/*
+	Prototype function that moves each element of the gauss list one place to the left, replacing unknown values with zeros.
+*/
+void shuntGaussList(){
+	float temp_value;
+	for (int i = 1; i < map_side_size; i++){
+		temp_value = gauss_value_list[i];
+		gauss_value_list[i-1] = temp_value;
+	}
+	gauss_value_list[map_side_size-1] = 0;
 }
 
 /*
@@ -274,15 +286,19 @@ int main(){
 			//cout << "WINNER: " << winner << "\tVALUE: " << distance_map[winner/input_vector_length] << endl;
 		}
 		if (iteration%neighbourhood_reduce_iteration==0 && iteration != 0){
-			if (gauss_value > 1){
-				gauss_value--;
+			// if (gauss_value > 1){
+			// 	gauss_value--;
+			// 	cout << "Neighbourhood reduced\t";
+			// 	recalculateGaussList();
+			// }
+			// else if (gauss_value >= 0.5){
+			// 	gauss_value -= 0.1;
+			// 	cout << "Neighbourhood reduced\t";
+			// 	recalculateGaussList();
+			// }
+			if (gauss_value_list[1] != 0){
 				cout << "Neighbourhood reduced\t";
-				recalculateGaussList();
-			}
-			else if (gauss_value >= 0.5){
-				gauss_value -= 0.1;
-				cout << "Neighbourhood reduced\t";
-				recalculateGaussList();
+				shuntGaussList();
 			}
 			std::ostringstream convert;   // stream used for the conversion
 			convert << iteration;      
@@ -294,7 +310,7 @@ int main(){
 	}
 	cout << "Convergent at iteration " << iteration << "!" << endl;
 	drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");
-	cout << "Visual representation stored at \"map_draw/convergent_map.html\"";
+	cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	//print_map(map);
 	// **** 0.4 is the min gauss value.
 	// gauss_value = 2;
