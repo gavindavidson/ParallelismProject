@@ -4,6 +4,7 @@
 #include <new>
 #include <sstream>
 #include <ctime>
+#include <string>
 #include "../drawHTMLmap/drawHTMLMap.h"
 
 /*
@@ -18,11 +19,11 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 32
 #define trials 1
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
-#define input_size 15000
+#define input_size 5000
 #define input_vector_length 3
 
 using std::vector;
@@ -71,11 +72,28 @@ void printArray(float *array, int size, int grouping){
 	cout << "]";
 }
 
+int writeToFile(float *data, int size, string filename){
+	string contents = "";
+	for (int i = 0; i < size*input_vector_length; i++){
+		if (i%input_vector_length == 0){
+			contents += "\n";
+		}
+		std::ostringstream convert;
+		convert << data[i]; 
+		contents += convert.str() + "\t";
+	}
+	std::ofstream outfile;
+	outfile.open(filename.c_str());
+	outfile << contents;
+	outfile.close();
+	return 0;
+}
+
 float * initialiseRandomArray(int map_size, int vector_length){
 	srand(time(NULL));				// Seed rand() with current time
 	//float output[map_size * vector_length];
 	float *output = (float *)malloc(map_size*vector_length*sizeof(float));
-	for (int i = 0; i < map_size * vector_length; i++){
+	for (int i = 0; i < (map_size * vector_length); i++){
 		output[i] = (rand()/(float)RAND_MAX) * range + min;
 	}
 	return output;
@@ -157,7 +175,7 @@ float manhattan_distance(float *a, float *b, int a_start_index, int b_start_inde
 	float sum = 0;
 	int b_index = b_start_index;
 	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
-		sum += a[a_index] - b[b_index];
+		sum += abs(a[a_index] - b[b_index]);
 		b_index++;
 	}
 	return sum;
@@ -209,9 +227,11 @@ int findWinner(int input_index){
 	int winner;
 	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	float winnerDistance, possible_winnerDistance;
-	winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
+	//winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
+	winnerDistance = manhattan_distance(map, input, 0, input_index, input_vector_length);
 	for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
-		distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+		// distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
+		distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
 	}
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 		if (distance_map[distance_index] < winnerDistance){
@@ -225,17 +245,26 @@ int findWinner(int input_index){
 float quantisationError(int input_index){
 	int winner = findWinner(input_index);
 	float total_error_percentage = 0;
-	float percentage;
+	float total_error = 0;
+	float percentage, difference;
 	for (int i = 0; i < input_vector_length; i++){
-		percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
-		if (percentage >= 0){
-			total_error_percentage += percentage;
+		//percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
+		difference = (map[winner + i] - input[input_index + i]);
+		// if (percentage >= 0){
+		// 	total_error_percentage += percentage;
+		// }
+		// else {
+		// 	total_error_percentage -= percentage;
+		// }
+		if (difference >= 0){
+			total_error += difference;
 		}
 		else {
-			total_error_percentage -= percentage;
+			total_error -= difference;
 		}
 	}
-	return total_error_percentage/input_vector_length;
+	//return total_error_percentage/input_vector_length;
+	return total_error/input_vector_length;
 }
 
 int main(){
@@ -267,6 +296,7 @@ int main(){
 	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
 	input = initialiseRandomArray(input_size, input_vector_length);
+	writeToFile(input, input_size, "input.dat");
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 
@@ -282,11 +312,13 @@ int main(){
 			previous_map[i] = map[i];
 		}
 		recalculateGaussList();
+		time_t current_time = time(0);
+		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&current_time));
 
 		for (iteration = 0; iteration < cycle_length*map_side_size; iteration++){
-			time_t current_time = time(0);
+			//current_time = time(0);
 			//cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
-			cout << "Iteration: " << iteration << "\t" << asctime(localtime(&current_time));
+			//cout << "Iteration: " << iteration << "\t" << asctime(localtime(&current_time));
 			for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 				winner = findWinner(input_index);
 				updateWeights(winner, input, input_index, input_vector_length);
@@ -303,7 +335,7 @@ int main(){
 				// 	recalculateGaussList();
 				// }
 				if (gauss_value_list[1] != 0){
-					cout << "Neighbourhood reduced\t" << endl;
+					//cout << "Neighbourhood reduced\t" << endl;
 					shuntGaussList();
 				}
 				// std::ostringstream convert;   // stream used for the conversion
@@ -311,21 +343,21 @@ int main(){
 				// drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
 				// cout << "<map drawn>" << endl;
 			}
-			std::ostringstream convert;   // stream used for the conversion
-			convert << iteration;      
-			drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
-			cout << "<map drawn>" << endl;
+			// std::ostringstream convert;   // stream used for the conversion
+			// convert << iteration;      
+			// drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map" + convert.str() + ".html");
+			// cout << "<map drawn>" << endl;
 			//printArray(map, map_side_size*map_side_size*input_vector_length, input_vector_length);
 
 		}
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
-		cout << "Completeion at iteration " << iteration << "!" << endl;
+		//cout << "Completeion at iteration " << iteration << "!" << endl;
 		// drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");
 		float total_quantisation_error = 0;
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			total_quantisation_error += quantisationError(input_index);
 		}
-		cout << "Average Quantisation Error: " << total_quantisation_error/input_size << "%" << endl;
+		cout << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
 		std::ostringstream convert;   // stream used for the conversion
 		convert << current_trial;      
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".html");
@@ -342,7 +374,10 @@ int main(){
 	// cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << "%" << endl;
 	drawMap(best_map, map_side_size*map_side_size, input_vector_length, "map_draw/best_map.html");
+	writeToFile(map, map_side_size*map_side_size, "map.dat");
 	cout << "Visual representation stored at \"map_draw/best_map.html\"" << endl;
+	time_t current_time = time(0);
+	cout << "FINISHED at " << asctime(localtime(&current_time));
 	//print_map(map);
 	// **** 0.4 is the min gauss value.
 	// gauss_value = 2;
