@@ -17,10 +17,10 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define cycle_length 20
+#define cycle_length 5
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 32
-#define trials 1
+#define map_side_size 16
+#define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 #define input_size 5000
@@ -36,7 +36,7 @@ float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be 
 
 int non_convergent_points = 0;
 
-float gauss_value = sqrt(map_side_size);
+float gauss_value = sqrt(map_side_size)/10;
 float gauss_value_list[map_side_size];
 const double pi = 3.14159265359;
 
@@ -193,13 +193,38 @@ void printVector(vector<float> a){
 	Function returns an int representing how close, in steps, point a is to point b
 */
 int determineSteps(int a, int b){
-	int a_x, a_y, b_x, b_y;
+	int a_x, a_y, b_x, b_y, output;
 	a_x = a % map_side_size;
 	a_y = a / map_side_size;
 	b_x = b % map_side_size;
 	b_y = b / map_side_size;
 
-	return fmax(abs(a_x-b_x), abs(a_y-b_y));
+	int x_diff, y_diff;
+	x_diff = a_x - b_x;
+	y_diff = a_y - b_y;
+	if (x_diff < 0){
+		x_diff = x_diff*-1;
+	}
+	if (y_diff < 0){
+		y_diff = y_diff*-1;
+	}
+	// cout << "a: " << a << "\tb: " << b << endl;
+	// cout << "a_x: " << a_x << "\tb_x: " << b_x << "\ta_y: " << a_y << "\tb_y: " << b_y << endl;
+	// cout << "x: " << x_diff << "\ty: " << y_diff;
+
+	if (x_diff < y_diff){
+		// cout << "\tHIT 1" << endl;
+		return y_diff;
+	}
+	else {
+		// cout << "\tHIT 2" << endl;
+		return x_diff;
+	}
+	//output = fmax(abs(a_x-b_x), abs(a_y-b_y));
+	// if (abs(a_x-b_x) > abs(a_y-b_y)){
+	// 	return abs(a_x-b_x);
+	// }
+	// return abs(a_y-b_y);
 }
 
 /*
@@ -224,7 +249,7 @@ void updateWeights(int winner_index, float *input_array, int input_start_index, 
 }
 
 int findWinner(int input_index){
-	int winner;
+	int winner = 0;
 	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	float winnerDistance, possible_winnerDistance;
 	//winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
@@ -267,6 +292,19 @@ float quantisationError(int input_index){
 	return total_error/input_vector_length;
 }
 
+void drawProgessBar(int current, int max){
+	int percentage = ((float)current/max)*100;
+	cout << "\r";
+	cout << percentage << "%\t|";
+	for (int i = 0; i < percentage/2; i++){
+		cout << "=";
+	}
+	for (int i = percentage/2; i < 50; i++){
+		cout << " ";
+	}
+	cout << "|" << std::flush;
+}
+
 int main(){
 	cout << "== Stuff to do..\t ==" << endl
 			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
@@ -274,9 +312,10 @@ int main(){
 			<< "\t\t+ Fix iteration" << endl
 			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
 			<< "\t- Separate loops\t\t\t\t<DONE>" << endl
-			<< "\t- Set up optimal map finding\t\t\t<IN PROGRESS>" << endl
+			<< "\t- Set up optimal map finding\t\t\t<DONE>" << endl
 			<< "\t\t+ Set up quantisation error checker" << endl
 			<< "\t\t+ Set up repeated map building routine" << endl
+			<< "\t- Tune gaussian curve\t\t\t\t<IN PROGRESS>" << endl
 			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
@@ -300,10 +339,12 @@ int main(){
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 
-	int winner, current;
+	int current;
+	int *winner = (int *)malloc(sizeof(int));
 	int iteration;
 	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	int total_input_values = input_size*input_vector_length;
+	// map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 	//for (iteration = 0; !convergent() || iteration == 0; iteration++){
 	for (int current_trial = 0; current_trial < trials; current_trial++){
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
@@ -314,14 +355,16 @@ int main(){
 		recalculateGaussList();
 		time_t current_time = time(0);
 		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&current_time));
-
+		// cout << "TRIAL " << current_trial << endl;
 		for (iteration = 0; iteration < cycle_length*map_side_size; iteration++){
+			drawProgessBar(iteration, cycle_length*map_side_size);
 			//current_time = time(0);
 			//cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 			//cout << "Iteration: " << iteration << "\t" << asctime(localtime(&current_time));
 			for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
-				winner = findWinner(input_index);
-				updateWeights(winner, input, input_index, input_vector_length);
+				*winner = findWinner(input_index);
+				// winner = 1;
+				updateWeights(*winner, input, input_index, input_vector_length);
 			}
 			if (iteration%cycle_length==0 && iteration != 0){
 				// if (gauss_value > 1){
@@ -350,6 +393,7 @@ int main(){
 			//printArray(map, map_side_size*map_side_size*input_vector_length, input_vector_length);
 
 		}
+		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
 		//cout << "Completeion at iteration " << iteration << "!" << endl;
 		// drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");
@@ -357,7 +401,7 @@ int main(){
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			total_quantisation_error += quantisationError(input_index);
 		}
-		cout << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
+		cout << endl << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
 		std::ostringstream convert;   // stream used for the conversion
 		convert << current_trial;      
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".html");
@@ -370,6 +414,7 @@ int main(){
 			free(best_map);
 			best_map = map;
 		}
+		gauss_value = gauss_value*10;
 	}
 	// cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << "%" << endl;
