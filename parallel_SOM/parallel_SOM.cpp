@@ -17,9 +17,9 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define cycle_length 5
+#define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
+#define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
@@ -208,23 +208,8 @@ int determineSteps(int a, int b){
 	if (y_diff < 0){
 		y_diff = y_diff*-1;
 	}
-	// cout << "a: " << a << "\tb: " << b << endl;
-	// cout << "a_x: " << a_x << "\tb_x: " << b_x << "\ta_y: " << a_y << "\tb_y: " << b_y << endl;
-	// cout << "x: " << x_diff << "\ty: " << y_diff;
 
-	if (x_diff < y_diff){
-		// cout << "\tHIT 1" << endl;
-		return y_diff;
-	}
-	else {
-		// cout << "\tHIT 2" << endl;
-		return x_diff;
-	}
-	//output = fmax(abs(a_x-b_x), abs(a_y-b_y));
-	// if (abs(a_x-b_x) > abs(a_y-b_y)){
-	// 	return abs(a_x-b_x);
-	// }
-	// return abs(a_y-b_y);
+	return fmax(abs(a_x-b_x), abs(a_y-b_y));
 }
 
 /*
@@ -405,6 +390,7 @@ int main(){
 		std::ostringstream convert;   // stream used for the conversion
 		convert << current_trial;      
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".html");
+		writeToFile(map, map_side_size*map_side_size, "map_"+convert.str() + ".dat");
 		if (current_trial == 0){
 			best_quantisation_error = total_quantisation_error;
 			best_map = map;
