@@ -17,7 +17,7 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define cycle_length 20
+#define cycle_length 5
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 32
 #define trials 3
@@ -266,15 +266,13 @@ float quantisationError(int input_index){
 		// else {
 		// 	total_error_percentage -= percentage;
 		// }
-		if (difference >= 0){
-			total_error += difference;
+		if (difference < 0){
+			difference = difference*-1;
 		}
-		else {
-			total_error -= difference;
-		}
+		total_error += sqrt(difference);
 	}
 	//return total_error_percentage/input_vector_length;
-	return total_error/input_vector_length;
+	return total_error;
 }
 
 void drawProgessBar(int current, int max){
@@ -400,7 +398,6 @@ int main(){
 			free(best_map);
 			best_map = map;
 		}
-		gauss_value = gauss_value*10;
 	}
 	// cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << "%" << endl;
