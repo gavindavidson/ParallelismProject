@@ -17,7 +17,7 @@ THINGS TO CONSIDER:
 */
 
 // Initial neighbourhood size to be all points in map
-#define cycle_length 5
+#define cycle_length 20
 // Learning rate to be defined by a Gaussian function
 #define map_side_size 32
 #define trials 3
@@ -89,12 +89,38 @@ int writeToFile(float *data, int size, string filename){
 	return 0;
 }
 
-float * initialiseRandomArray(int map_size, int vector_length){
+
+/*
+	Function produces a random dataset within certain predifined ranges
+*/
+float * initialiseRandomArray(int array_size, int vector_length){
 	srand(time(NULL));				// Seed rand() with current time
+	cout << "<Producing random array>" << endl;
 	//float output[map_size * vector_length];
-	float *output = (float *)malloc(map_size*vector_length*sizeof(float));
-	for (int i = 0; i < (map_size * vector_length); i++){
+	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
+	for (int i = 0; i < (array_size * vector_length); i++){
 		output[i] = (rand()/(float)RAND_MAX) * range + min;
+	}
+	return output;
+}
+
+/*
+	Function produces a random dataset that is purposefully clustered for testing
+*/
+float * initialiseClusteredArray(int array_size, int vector_length, int clusters){
+	srand(time(NULL));
+	cout << "<Producing clustered array>" << endl;
+	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
+	float centre = (rand()/(float)RAND_MAX) * range + min;
+	float max_variance = max/20;	// Clusters are to be within 5% of the max value of the centre point
+	for (int outer = 0; outer < clusters; outer++){
+		for (int inner = 0; inner < (array_size * vector_length)/clusters; inner++){
+			output[inner + (outer*(array_size * vector_length)/clusters)] = (rand()/(float)RAND_MAX) * max_variance + centre;
+			//cout << inner + (outer*(array_size * vector_length)/clusters) << " ";
+		}
+	}
+	for (int i = 0; i < (array_size * vector_length)%clusters; i++){
+		output[(array_size * vector_length) - 1 - i] = (rand()/(float)RAND_MAX) * range + min;
 	}
 	return output;
 }
@@ -132,6 +158,7 @@ void recalculateGaussList(){
 	//cout << "New gauss_value_list:\n[";
 	for (int x = 0; x < map_side_size; x++){
 		gauss_value_list[x] = a* exp(-(pow(x, 2)/(2*pow(gauss_value, 2))));
+
 		// if (x == 0){
 		// 	gauss_value_list[x] = 1;
 		// }
@@ -251,28 +278,30 @@ int findWinner(int input_index){
 	}
 	return winner;
 }
-
+// float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 float quantisationError(int input_index){
 	int winner = findWinner(input_index);
 	float total_error_percentage = 0;
-	float total_error = 0;
+	float total_error = 0.0;
 	float percentage, difference;
-	for (int i = 0; i < input_vector_length; i++){
-		//percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
-		difference = (map[winner + i] - input[input_index + i]);
-		// if (percentage >= 0){
-		// 	total_error_percentage += percentage;
-		// }
-		// else {
-		// 	total_error_percentage -= percentage;
-		// }
-		if (difference < 0){
-			difference = difference*-1;
-		}
-		total_error += sqrt(difference);
-	}
+	difference = euclidean_distance(input, map, input_index, winner, input_vector_length);
+	return difference;
+	// for (int i = 0; i < input_vector_length; i++){
+	// 	//percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
+	// 	difference = (map[winner + i] - input[input_index + i]);
+	// 	// if (percentage >= 0){
+	// 	// 	total_error_percentage += percentage;
+	// 	// }
+	// 	// else {
+	// 	// 	total_error_percentage -= percentage;
+	// 	// }
+	// 	if (difference < 0){
+	// 		difference = difference*-1;
+	// 	}
+	// 	total_error += sqrt(difference);
+	// }
 	//return total_error_percentage/input_vector_length;
-	return total_error;
+	// return total_error;
 }
 
 void drawProgessBar(int current, int max){
@@ -317,7 +346,8 @@ int main(){
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
-	input = initialiseRandomArray(input_size, input_vector_length);
+	//input = initialiseRandomArray(input_size, input_vector_length);
+	input = initialiseClusteredArray(input_size, input_vector_length, 3);
 	writeToFile(input, input_size, "input.dat");
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
@@ -336,6 +366,7 @@ int main(){
 			previous_map[i] = map[i];
 		}
 		recalculateGaussList();
+		writeToFile(gauss_value_list, map_side_size, "learning_rates.dat");
 		time_t current_time = time(0);
 		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&current_time));
 		// cout << "TRIAL " << current_trial << endl;
