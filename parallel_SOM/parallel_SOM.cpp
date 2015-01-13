@@ -23,8 +23,10 @@ THINGS TO CONSIDER:
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
+
 #define input_size 5000
 #define input_vector_length 3
+#define input_data_clusters 5
 
 using std::vector;
 using std::cout;
@@ -111,9 +113,10 @@ float * initialiseClusteredArray(int array_size, int vector_length, int clusters
 	srand(time(NULL));
 	cout << "<Producing clustered array>" << endl;
 	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
-	float centre = (rand()/(float)RAND_MAX) * range + min;
+	float centre;
 	float max_variance = max/20;	// Clusters are to be within 5% of the max value of the centre point
 	for (int outer = 0; outer < clusters; outer++){
+		centre = (rand()/(float)RAND_MAX) * range + min;
 		for (int inner = 0; inner < (array_size * vector_length)/clusters; inner++){
 			output[inner + (outer*(array_size * vector_length)/clusters)] = (rand()/(float)RAND_MAX) * max_variance + centre;
 			//cout << inner + (outer*(array_size * vector_length)/clusters) << " ";
@@ -346,9 +349,10 @@ int main(){
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
-	//input = initialiseRandomArray(input_size, input_vector_length);
-	input = initialiseClusteredArray(input_size, input_vector_length, 3);
+	input = initialiseRandomArray(input_size, input_vector_length);
 	writeToFile(input, input_size, "input.dat");
+	input = initialiseClusteredArray(input_size, input_vector_length, 4	);
+	writeToFile(input, input_size, "input_clustered.dat");
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 
@@ -417,7 +421,7 @@ int main(){
 		}
 		cout << endl << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
 		std::ostringstream convert;   // stream used for the conversion
-		convert << current_trial;      
+		convert << current_trial;
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".html");
 		writeToFile(map, map_side_size*map_side_size, "map_"+convert.str() + ".dat");
 		if (current_trial == 0){
