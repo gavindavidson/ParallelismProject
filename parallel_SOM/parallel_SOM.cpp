@@ -19,12 +19,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 32
+#define map_side_size 64
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 5000
+#define input_size 12000
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -111,7 +111,7 @@ float * initialiseRandomArray(int array_size, int vector_length){
 */
 float * initialiseClusteredArray(int array_size, int vector_length, int clusters){
 	srand(time(NULL));
-	cout << "<Producing clustered array>" << endl;
+	cout << "<Producing " << clusters << " cluster array >" << endl;
 	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
 	float centre;
 	float max_variance = max/20;	// Clusters are to be within 5% of the max value of the centre point
@@ -335,8 +335,8 @@ int main(){
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
-			<< "\t- Map convergence tollerance\t\t" << map_convergence_tollerance << endl
-			<< "\t- Vector convergence tollerance\t\t" << vector_convergence_tollerance << endl
+			// << "\t- Map convergence tollerance\t\t" << map_convergence_tollerance << endl
+			// << "\t- Vector convergence tollerance\t\t" << vector_convergence_tollerance << endl
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "\t- Trials\t\t\t\t" << trials << endl
@@ -349,9 +349,9 @@ int main(){
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
-	input = initialiseRandomArray(input_size, input_vector_length);
-	writeToFile(input, input_size, "input.dat");
-	input = initialiseClusteredArray(input_size, input_vector_length, 4	);
+	// input = initialiseRandomArray(input_size, input_vector_length);
+	// writeToFile(input, input_size, "input.dat");
+	input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
 	writeToFile(input, input_size, "input_clustered.dat");
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
@@ -435,9 +435,9 @@ int main(){
 		}
 	}
 	// cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
-	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << "%" << endl;
+	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << endl;
 	drawMap(best_map, map_side_size*map_side_size, input_vector_length, "map_draw/best_map.html");
-	writeToFile(map, map_side_size*map_side_size, "map.dat");
+	writeToFile(best_map, map_side_size*map_side_size, "map.dat");
 	cout << "Visual representation stored at \"map_draw/best_map.html\"" << endl;
 	time_t current_time = time(0);
 	cout << "FINISHED at " << asctime(localtime(&current_time));
