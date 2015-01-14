@@ -5,7 +5,8 @@
 #include <sstream>
 #include <ctime>
 #include <string>
-#include "../drawHTMLmap/drawHTMLMap.h"
+//#include "../drawHTMLmap/drawHTMLMap.h"
+#include "../ppm/drawPPMmap.h"
 
 /*
 THINGS TO CONSIDER:
@@ -365,7 +366,7 @@ int main(){
 	//for (iteration = 0; !convergent() || iteration == 0; iteration++){
 	for (int current_trial = 0; current_trial < trials; current_trial++){
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
-		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
+		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.ppm");
 		for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
 			previous_map[i] = map[i];
 		}
@@ -422,7 +423,7 @@ int main(){
 		cout << endl << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
 		std::ostringstream convert;   // stream used for the conversion
 		convert << current_trial;
-		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".html");
+		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".ppm");
 		writeToFile(map, map_side_size*map_side_size, "map_"+convert.str() + ".dat");
 		if (current_trial == 0){
 			best_quantisation_error = total_quantisation_error;
@@ -436,9 +437,9 @@ int main(){
 	}
 	// cout << "Visual representation stored at \"map_draw/convergent_map.html\"" << endl;
 	cout << "Process complete\nBest quantisation error: " << best_quantisation_error/input_size << endl;
-	drawMap(best_map, map_side_size*map_side_size, input_vector_length, "map_draw/best_map.html");
+	drawMap(best_map, map_side_size*map_side_size, input_vector_length, "map_draw/best_map.ppm");
 	writeToFile(best_map, map_side_size*map_side_size, "map.dat");
-	cout << "Visual representation stored at \"map_draw/best_map.html\"" << endl;
+	cout << "Visual representation stored at \"map_draw/best_map.ppm\"" << endl;
 	time_t current_time = time(0);
 	cout << "FINISHED at " << asctime(localtime(&current_time));
 	//print_map(map);
