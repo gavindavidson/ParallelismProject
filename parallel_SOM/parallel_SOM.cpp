@@ -8,6 +8,12 @@
 //#include "../drawHTMLmap/drawHTMLMap.h"
 #include "../ppm/drawPPMmap.h"
 
+
+// PRE OPENCL TESTING
+#include "manhattan_distance.h"
+#include "update_weight.h"
+// =================
+
 /*
 THINGS TO CONSIDER:
 	-	Initial neighbourhood size
@@ -20,12 +26,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 16
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 12000
+#define input_size 2000
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -202,15 +208,15 @@ float euclidean_distance(float *a, float *b, int a_start_index, int b_start_inde
 /*
 	Function returns the manhattan distance between two vectors a and b
 */
-float manhattan_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
-	float sum = 0;
-	int b_index = b_start_index;
-	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
-		sum += abs(a[a_index] - b[b_index]);
-		b_index++;
-	}
-	return sum;
-}
+// float manhattan_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
+// 	float sum = 0;
+// 	int b_index = b_start_index;
+// 	for (int a_index = a_start_index; a_index < vector_size+a_start_index; a_index++){
+// 		sum += abs(a[a_index] - b[b_index]);
+// 		b_index++;
+// 	}
+// 	return sum;
+// }
 
 void printVector(vector<float> a){
 	cout << "[";
@@ -230,16 +236,6 @@ int determineSteps(int a, int b){
 	b_x = b % map_side_size;
 	b_y = b / map_side_size;
 
-	int x_diff, y_diff;
-	x_diff = a_x - b_x;
-	y_diff = a_y - b_y;
-	if (x_diff < 0){
-		x_diff = x_diff*-1;
-	}
-	if (y_diff < 0){
-		y_diff = y_diff*-1;
-	}
-
 	return fmax(abs(a_x-b_x), abs(a_y-b_y));
 }
 
@@ -247,15 +243,31 @@ int determineSteps(int a, int b){
 	Function that changes the weights of the map according to their position relative to the winning point and the input vector. This is done
 	using the 
 */
-void updateWeights(int winner_index, float *input_array, int input_start_index, int vector_size){
+void update_weights(int winner_index, int input_start_index, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
-	for (int map_index = 0; map_index < map_size; map_index++){
-		// map_index/vector_size means that neighbourhood value is the same for a 'single vector' within the whole map array
-		neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
-		//cout << endl << map_index << ":\told value: " << map[map_index];
-		map[map_index] = map[map_index] - 
-				((map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+	// for (int map_index = 0; map_index < map_size; map_index++){
+	// 	// map_index/vector_size means that neighbourhood value is the same for a 'single vector' within the whole map array
+	// 	neighbourhood_value = determineSteps(map_index/vector_size, winner_index);
+	// 	//cout << endl << map_index << ":\told value: " << map[map_index];
+	// 	map[map_index] = map[map_index] - 
+	// 			((map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
+
+	for (int current_position = 0; current_position < map_side_size*map_side_size; current_position++){
+		/*
+		void update_weight(
+		float *map,
+		float *input_array,
+		float *gauss_value_list,
+		int winner_index,
+		int input_start_index,
+		int vector_length,
+		int map_side_size,
+		int current_id		// ONLY FOR NON OPENCL VERSION
+		);
+		*/
+		update_weight(map, input, gauss_value_list, winner_index, input_start_index, input_vector_length, map_side_size, current_position);
+
 		//cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[input_start_index] << "\tW_index: " << winner_index << endl;
 		/*
 			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
@@ -267,13 +279,19 @@ void updateWeights(int winner_index, float *input_array, int input_start_index, 
 int findWinner(int input_index){
 	int winner = 0;
 	int total_map_values = map_side_size*map_side_size*input_vector_length;
-	float winnerDistance, possible_winnerDistance;
+	float winnerDistance = FLT_MAX;
 	//winnerDistance = euclidean_distance(map, input, 0, input_index, input_vector_length);
-	winnerDistance = manhattan_distance(map, input, 0, input_index, input_vector_length);
-	for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
+	//winnerDistance = manhattan_distance(map, input, 0, input_index, input_vector_length);
+	//for (int map_index = 0; map_index < total_map_values; map_index = map_index+input_vector_length){ 
 		// distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
-		distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
+		//distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
+
+	// -- OPENCL KERNEL	--
+	for (int current_iter = 0; current_iter < map_side_size*map_side_size; current_iter++){
+		manhattan_distance(&input[input_index], map, distance_map, input_vector_length, current_iter);
 	}
+	// --				--
+
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 		if (distance_map[distance_index] < winnerDistance){
 			winnerDistance = distance_map[distance_index];
@@ -285,11 +303,20 @@ int findWinner(int input_index){
 // float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 float quantisationError(int input_index){
 	int winner = findWinner(input_index);
-	float total_error_percentage = 0;
-	float total_error = 0.0;
-	float percentage, difference;
-	difference = euclidean_distance(input, map, input_index, winner, input_vector_length);
-	return difference;
+	float local_average_error = 0;
+	for (int i = 0; i < input_vector_length; i++){
+		local_average_error += abs(input[input_index] - map[winner*input_vector_length]);
+	}
+	local_average_error = local_average_error/input_vector_length;
+	return local_average_error;
+
+	// float total_error_percentage = 0;
+	// float total_error = 0.0;
+	// float percentage, difference;
+	// difference = euclidean_distance(input, map, input_index, winner, input_vector_length);
+	// return difference;
+
+
 	// for (int i = 0; i < input_vector_length; i++){
 	// 	//percentage = (map[winner + i] - input[input_index + i])/input[input_index + i];
 	// 	difference = (map[winner + i] - input[input_index + i]);
@@ -332,6 +359,10 @@ int main(){
 			<< "\t\t+ Set up quantisation error checker" << endl
 			<< "\t\t+ Set up repeated map building routine" << endl
 			<< "\t- Tune gaussian curve\t\t\t\t<IN PROGRESS>" << endl
+			<< "\t- Set up openCL version\t\t\t\t" << endl
+			<< "\t\t+ Put functions into C code" << endl
+			<< "\t\t+ Put functions into separate files" << endl
+			<< "\t\t+ Add openCL stuff" << endl
 			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
@@ -341,7 +372,8 @@ int main(){
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "\t- Trials\t\t\t\t" << trials << endl
-			<< "==\t\t\t==" << endl;
+			<< "(\t- gauss_value\t\t\t\t" << gauss_value << ")" << endl
+ 			<< "==\t\t\t==" << endl;
 
 	min = 0;
 	max = 10000;
@@ -383,7 +415,7 @@ int main(){
 			for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 				*winner = findWinner(input_index);
 				// winner = 1;
-				updateWeights(*winner, input, input_index, input_vector_length);
+				update_weights(*winner, input_index, input_vector_length);
 			}
 			if (iteration%cycle_length==0 && iteration != 0){
 				// if (gauss_value > 1){
@@ -442,12 +474,4 @@ int main(){
 	cout << "Visual representation stored at \"map_draw/best_map.ppm\"" << endl;
 	time_t current_time = time(0);
 	cout << "FINISHED at " << asctime(localtime(&current_time));
-	//print_map(map);
-	// **** 0.4 is the min gauss value.
-	// gauss_value = 2;
-	// for (int i = 0; gauss_value_list[0] <= 1; i++){
-	// 	gauss_value = gauss_value - (0.1);
-	// 	recalculateGaussList();
-	// 	cout << "\ngauss_value: " << gauss_value << "\tgauss_list: " << "[" << gauss_value_list[0] << "," << gauss_value_list[1] << "," << gauss_value_list[2] << "," << gauss_value_list[3] << "]";
-	// }
 }
