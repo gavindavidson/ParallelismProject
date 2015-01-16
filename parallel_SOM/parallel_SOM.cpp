@@ -229,15 +229,15 @@ void printVector(vector<float> a){
 /*
 	Function returns an int representing how close, in steps, point a is to point b
 */
-int determineSteps(int a, int b){
-	int a_x, a_y, b_x, b_y, output;
-	a_x = a % map_side_size;
-	a_y = a / map_side_size;
-	b_x = b % map_side_size;
-	b_y = b / map_side_size;
+// int determineSteps(int a, int b){
+// 	int a_x, a_y, b_x, b_y, output;
+// 	a_x = a % map_side_size;
+// 	a_y = a / map_side_size;
+// 	b_x = b % map_side_size;
+// 	b_y = b / map_side_size;
 
-	return fmax(abs(a_x-b_x), abs(a_y-b_y));
-}
+// 	return fmax(abs(a_x-b_x), abs(a_y-b_y));
+// }
 
 /*
 	Function that changes the weights of the map according to their position relative to the winning point and the input vector. This is done
