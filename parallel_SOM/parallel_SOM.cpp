@@ -13,6 +13,8 @@
 #include "manhattan_distance.h"
 #include "update_weight.h"
 // =================
+#include "cl.hpp"
+#include "util.hpp"
 
 /*
 THINGS TO CONSIDER:
@@ -51,6 +53,24 @@ const double pi = 3.14159265359;
 
 float *map, *input, *previous_map, *distance_map, *best_map;
 float best_quantisation_error;
+
+// OPENCL STUFF
+cl_int err;
+cl::Buffer map_buffer, distance_map_buffer, subject_vector_buffer;
+cl::Context CPU_context;
+
+cl::Program manhattan_distance_prog;
+
+inline void
+    checkErr(cl_int err, const char * name)
+    {
+    if (err != CL_SUCCESS) {
+    std::cerr << "ERROR: " << name
+    << " (" << err << ")" << std::endl;
+    exit(EXIT_FAILURE);
+    }
+}
+// ---
 
 /*
 	Function outputs a string representation to cout of the map
@@ -118,7 +138,7 @@ float * initialiseRandomArray(int array_size, int vector_length){
 */
 float * initialiseClusteredArray(int array_size, int vector_length, int clusters){
 	srand(time(NULL));
-	cout << "<Producing " << clusters << " cluster array >" << endl;
+	cout << "<Producing " << clusters << " cluster array>" << endl;
 	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
 	float centre;
 	float max_variance = max/20;	// Clusters are to be within 5% of the max value of the centre point
@@ -286,11 +306,18 @@ int findWinner(int input_index){
 		// distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
 		//distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
 
-	// -- OPENCL KERNEL	--
+	// --PRE OPENCL KERNEL	--
 	for (int current_iter = 0; current_iter < map_side_size*map_side_size; current_iter++){
 		manhattan_distance(&input[input_index], map, distance_map, input_vector_length, current_iter);
 	}
 	// --				--
+	// OPENCL SUTFF
+	cl::Buffer subject_vector_buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+		(size_t)input_vector_length, &input[input_index], &err);
+	checkErr(err, "subject_vector_buffer");
+
+
+	// ---
 
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 		if (distance_map[distance_index] < winnerDistance){
@@ -349,6 +376,36 @@ void drawProgessBar(int current, int max){
 }
 
 int main(){
+	// OPENCL STUFF
+	vector<cl::Platform> platforms;
+	cl::Platform::get(&platforms);
+
+	string platform_name;
+	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
+
+	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
+	CPU_context = cl::Context(
+		CL_DEVICE_TYPE_CPU,
+		context_props,
+		NULL,
+		NULL,
+		&err);
+	checkErr(err, "CPU_context()");
+
+	vector<cl::Device> devices;
+	devices = CPU_context.getInfo<CL_CONTEXT_DEVICES>();
+	checkErr(devices.size() > 0 ? CL_SUCCESS : -1, "devices.size() > 0");
+
+	std::ifstream file("manhattan_distance.cl");
+	checkErr(file.is_open() ? CL_SUCCESS:-1, "manhattan_distance.cl");
+	string prog(std::istreambuf_iterator<char>(file), (std::istreambuf_iterator<char>()));
+
+	cl::Program::Sources source(1, std::make_pair(prog.c_str(), prog.length()+1));
+	manhattan_distance_prog = cl::Program(CPU_context, source);
+	err = program.build(devices, "");
+	checkErr(err, "Program::build()");
+	// ---
+
 	cout << "== Stuff to do..\t ==" << endl
 			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
 			<< "\t\t+ Arrays must be one dimensional" << endl
@@ -358,9 +415,9 @@ int main(){
 			<< "\t- Set up optimal map finding\t\t\t<DONE>" << endl
 			<< "\t\t+ Set up quantisation error checker" << endl
 			<< "\t\t+ Set up repeated map building routine" << endl
-			<< "\t- Tune gaussian curve\t\t\t\t<IN PROGRESS>" << endl
-			<< "\t- Set up openCL version\t\t\t\t" << endl
-			<< "\t\t+ Put functions into C code" << endl
+			<< "\t- Tune gaussian curve\t\t\t\t<DONE>" << endl
+			<< "\t- Set up openCL version\t\t\t\t<IN PROGRESS>" << endl
+			<< "\t\t+ Put functions into C code\t\t<IN PROGRESS>" << endl
 			<< "\t\t+ Put functions into separate files" << endl
 			<< "\t\t+ Add openCL stuff" << endl
 			<< "==\t\t\t==\n" << endl;
@@ -373,14 +430,22 @@ int main(){
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "\t- Trials\t\t\t\t" << trials << endl
 			<< "(\t- gauss_value\t\t\t\t" << gauss_value << ")" << endl
+			<< "\n\t- Platforms available\t\t\t" << platforms.size() << endl
+			<< "\t- Running on\t\t\t\t" << platform_name << endl
+			<< "\t- Devices available\t\t\t" << devices.size() << endl
  			<< "==\t\t\t==" << endl;
 
 	min = 0;
 	max = 10000;
 	range = max - min;
-
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+
+	//OPENCL STUFF
+	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+		(size_t)input_size, distance_map, &err);
+	checkErr(err, "distance_map_buffer");
+	// ---
 
 	// input = initialiseRandomArray(input_size, input_vector_length);
 	// writeToFile(input, input_size, "input.dat");
@@ -398,6 +463,12 @@ int main(){
 	//for (iteration = 0; !convergent() || iteration == 0; iteration++){
 	for (int current_trial = 0; current_trial < trials; current_trial++){
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
+
+		//OPENCL STUFF
+		map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+			(size_t)input_size*input_vector_length, map, &err);
+		checkErr(err, "map_buffer");
+		// ---
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.ppm");
 		for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
 			previous_map[i] = map[i];

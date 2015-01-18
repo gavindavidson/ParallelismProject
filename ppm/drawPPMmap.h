@@ -5,9 +5,9 @@
 #include <sstream>
 #include <fstream>
 #include <iostream>
-extern "C" {
+// extern "C" {
 	#include "PPM.h"
-}
+// }
 
 using std::vector;
 using std::string;
