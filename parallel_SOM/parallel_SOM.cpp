@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 5
+#define map_side_size 16
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 1200
+#define input_size 1024
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -60,6 +60,7 @@ cl::Buffer map_buffer, distance_map_buffer, subject_vector_buffer;
 cl::Context CPU_context;
 
 cl::Program manhattan_distance_prog;
+cl::Kernel manhattan_distance_kernel;
 cl::CommandQueue command_queue;
 
 inline void
@@ -308,53 +309,39 @@ int findWinner(int input_index){
 		//distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
 
 	// --PRE OPENCL KERNEL	--
-	for (int current_iter = 0; current_iter < map_side_size*map_side_size; current_iter++){
-		manhattan_distance(&input[input_index], map, distance_map, input_vector_length, current_iter);
-	}
+	// for (int current_iter = 0; current_iter < map_side_size*map_side_size; current_iter++){
+	// 	manhattan_distance(&input[input_index], map, distance_map, input_vector_length, current_iter);
+	// }
 	// --				--
 	// OPENCL SUTFF
-	cl::Buffer subject_vector_buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-		(size_t)input_vector_length, &input[input_index], &err);
-	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_WRITE_ONLY | CL_MEM_USE_HOST_PTR,
-		(size_t)input_size, distance_map, &err);
-	checkErr(err, "distance_map_buffer");
+	// subject_vector_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+	// 	(size_t)input_vector_length, &input[input_index], &err);
+	// checkErr(err, "subject_vector_buffer");
 
-	checkErr(err, "subject_vector_buffer");
-	cl::Kernel manhattan_distance_kernel(manhattan_distance_prog, "manhattan_distance");
-	checkErr(err, "manhattan_distance_kernel");	
+	err = command_queue.enqueueWriteBuffer(subject_vector_buffer, CL_TRUE, 0, input_vector_length, &input[input_index]);
+	checkErr(err, "enqueueWriteBuffer()");
+
 	manhattan_distance_kernel.setArg(0, subject_vector_buffer);
 	checkErr(err, "kernel(0)");
-	manhattan_distance_kernel.setArg(1, map_buffer);
-	checkErr(err, "kernel(1)");
-	manhattan_distance_kernel.setArg(2, distance_map_buffer);
-	checkErr(err, "kernel(2)");
-	manhattan_distance_kernel.setArg(3, input_vector_length);
-	checkErr(err, "kernel(3)");
-	cout << "HIT" << endl;
-	int map_size = map_side_size*map_side_size;
-	manhattan_distance_kernel.setArg(4, map_size);
-	checkErr(err, "kernel(4)");
 
 	cl::Event end_event;
-	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(input_size-1), cl::NDRange(1,1), NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(input_size), cl::NDRange(1,1), NULL, &end_event);
 	checkErr(err, "enqueueNDRangeKernel()");
 
-	//end_event.wait();
-	cout << "done, homie!\t" << endl;
+	end_event.wait();
 
 	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
-		input_size, distance_map);
+		map_side_size*map_side_size, distance_map);
 	checkErr(err, "enqueueReadBuffer()");
 	// ---
 
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
-		// if (distance_map[distance_index] < winnerDistance){
-		// 	winnerDistance = distance_map[distance_index];
-		// 	winner = distance_index;
-		// }
+		if (distance_map[distance_index] < winnerDistance){
+			winnerDistance = distance_map[distance_index];
+			winner = distance_index;
+		}
 		cout << distance_map[distance_index] << "\t";
 	}
-	cout << "\n ==== \n";
 	return winner;
 }
 // float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
@@ -426,11 +413,20 @@ int main(){
 	devices = CPU_context.getInfo<CL_CONTEXT_DEVICES>();
 	checkErr(devices.size() > 0 ? CL_SUCCESS : -1, "devices.size() > 0");
 
-	command_queue = cl::CommandQueue(CPU_context, devices[0],0,&err);
-	checkErr(err, "command_queue()");
-
 	int compute_units;
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
+
+	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+
+	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+		(size_t)(map_side_size*map_side_size), distance_map, &err);
+	checkErr(err, "distance_map_buffer");
+	subject_vector_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+		(size_t)input_vector_length, distance_map, &err);
+	checkErr(err, "subject_vector_buffer");
+
+	command_queue = cl::CommandQueue(CPU_context, devices[0],0,&err);
+	checkErr(err, "command_queue()");
 
 	std::ifstream file("manhattan_distance.cl");
 	checkErr(file.is_open() ? CL_SUCCESS:-1, "manhattan_distance.cl");
@@ -440,6 +436,20 @@ int main(){
 	manhattan_distance_prog = cl::Program(CPU_context, source);
 	err = manhattan_distance_prog.build(devices, "");
 	checkErr(err, "Program::build()");
+
+	manhattan_distance_kernel = cl::Kernel(manhattan_distance_prog, "manhattan_distance");
+	checkErr(err, "manhattan_distance_kernel");	
+	// manhattan_distance_kernel.setArg(0, subject_vector_buffer);
+	// checkErr(err, "kernel(0)");
+	// manhattan_distance_kernel.setArg(1, map_buffer);
+	// checkErr(err, "kernel(1)");
+	manhattan_distance_kernel.setArg(2, distance_map_buffer);
+	checkErr(err, "kernel(2)");
+	manhattan_distance_kernel.setArg(3, input_vector_length);
+	checkErr(err, "kernel(3)");
+	int map_size = map_side_size*map_side_size;
+	manhattan_distance_kernel.setArg(4, map_size);
+	checkErr(err, "kernel(4)");
 	// ---
 
 	cout << "== Stuff to do..\t ==" << endl
@@ -476,7 +486,7 @@ int main(){
 	max = 10000;
 	range = max - min;
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
-	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
 	//OPENCL STUFF
 
@@ -503,6 +513,8 @@ int main(){
 		map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 			(size_t)input_size*input_vector_length, map, &err);
 		checkErr(err, "map_buffer");
+		manhattan_distance_kernel.setArg(1, map_buffer);
+		checkErr(err, "kernel(1)");
 		// ---
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.ppm");
 		for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){

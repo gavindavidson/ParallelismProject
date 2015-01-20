@@ -1,18 +1,23 @@
+#pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 __kernel void manhattan_distance(
-	__global long * subject_vector, 
-	__global long * map,
-	__global long * distance_array,
+	__global float * subject_vector, 
+	__global float * map,
+	__global float * distance_map,
 	int vector_length,
 	int map_size)
 {
-	if (get_global_id(0) < map_size){
-	   	int base_map_position = get_global_id(0)*vector_length;
+	size_t tid = get_global_id(0);
+	if (tid < map_size){
+	   	int base_map_position = tid*vector_length;
+	   	//int base_map_position = 0;
 	   	
-		long sum = 0;
+		float sum = 0;
 		for (int component = 0; component < vector_length; component++)
 		{
-			sum += abs(subject_vector[component] - map[base_map_position+component]);	
+			sum += fabs(subject_vector[component] - map[base_map_position+component]);	
+			//sum = fabs(subject_vector[component]);
 		}
-		distance_array[get_global_id(0)] = sum;
+		//distance_map[tid] = sum;
+		distance_map[tid] = 1;
 	}
 }
