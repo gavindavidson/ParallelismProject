@@ -1,4 +1,5 @@
 #include "update_weight.h"
+#include <stdio.h>
 
 void update_weight(
 	float *map,

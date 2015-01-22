@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
+#define map_side_size 64
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 1024
+#define input_size 12288
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -54,13 +54,14 @@ const double pi = 3.14159265359;
 float *map, *input, *previous_map, *distance_map, *best_map;
 float best_quantisation_error;
 
-// OPENCL STUFF
+// OPENCL
 cl_int err;
-cl::Buffer map_buffer, distance_map_buffer, subject_vector_buffer;
+cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer;
+//cl::Buffer subject_vector_buffer;
 cl::Context CPU_context;
 
-cl::Program manhattan_distance_prog;
-cl::Kernel manhattan_distance_kernel;
+// cl::Program manhattan_distance_prog;
+cl::Kernel manhattan_distance_kernel, update_weight_kernel;
 cl::CommandQueue command_queue;
 
 inline void
@@ -185,7 +186,7 @@ bool convergent(){
 /*
 	Function creates a list of values where list[x] represents the value for the neighbourhood function for a point x places from the winning point
 */
-void recalculateGaussList(){
+void calculateGaussList(){
 	float a = 1.0/(gauss_value*sqrt(2*pi));
 	//cout << "New gauss_value_list:\n[";
 	for (int x = 0; x < map_side_size; x++){
@@ -275,26 +276,40 @@ void update_weights(int winner_index, int input_start_index, int vector_size){
 	// 	map[map_index] = map[map_index] - 
 	// 			((map[map_index] - input_array[input_start_index + (map_index%vector_size)]) * gauss_value_list[neighbourhood_value]);
 
-	for (int current_position = 0; current_position < map_side_size*map_side_size; current_position++){
-		/*
-		void update_weight(
-		float *map,
-		float *input_array,
-		float *gauss_value_list,
-		int winner_index,
-		int input_start_index,
-		int vector_length,
-		int map_side_size,
-		int current_id		// ONLY FOR NON OPENCL VERSION
-		);
-		*/
-		update_weight(map, input, gauss_value_list, winner_index, input_start_index, input_vector_length, map_side_size, current_position);
+	// <OPENCL>
+	// need winner index and input start index
+	update_weight_kernel.setArg(3, winner_index);
+	checkErr(err, "update_weight_kernel: kernel(3)");
+	update_weight_kernel.setArg(4, input_start_index);
+	checkErr(err, "update_weight_kernel: kernel(4)");
 
-		//cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[input_start_index] << "\tW_index: " << winner_index << endl;
-		/*
-			current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
-		*/
-	}
+	cl::Event end_event;
+	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NDRange(64,64), NULL, &end_event);
+	checkErr(err, "update_weight_kernel: enqueueNDRangeKernel()");
+
+	end_event.wait();
+	// </OPENCL>
+
+	// for (int current_position = 0; current_position < map_side_size*map_side_size; current_position++){
+	// 	/*
+	// 	void update_weight(
+	// 	float *map,
+	// 	float *input_array,
+	// 	float *gauss_value_list,
+	// 	int winner_index,
+	// 	int input_start_index,
+	// 	int vector_length,
+	// 	int map_side_size,
+	// 	int current_id		// ONLY FOR NON OPENCL VERSION
+	// 	);
+	// 	*/
+	// 	update_weight(map, input, gauss_value_list, winner_index, input_start_index, input_vector_length, map_side_size, current_position);
+
+	// 	//cout << "\tnew value: " << map[map_index] << "\tN_value: " << gauss_value_list[neighbourhood_value] << "\tIn: " << input_array[input_start_index] << "\tW_index: " << winner_index << endl;
+	// 	/*
+	// 		current_pos_vector =  current_pos_vector - ((current_pos_vector - input_vector) * neighbourhood_function)
+	// 	*/
+	// }
 	//cout << "\n\n=====\n\n";
 }
 
@@ -308,39 +323,43 @@ int findWinner(int input_index){
 		// distance_map[map_index/input_vector_length] = euclidean_distance(map, input, map_index, input_index, input_vector_length);
 		//distance_map[map_index/input_vector_length] = manhattan_distance(map, input, map_index, input_index, input_vector_length);
 
-	// --PRE OPENCL KERNEL	--
+	// <PRE OPENCL KERNEL>
 	// for (int current_iter = 0; current_iter < map_side_size*map_side_size; current_iter++){
 	// 	manhattan_distance(&input[input_index], map, distance_map, input_vector_length, current_iter);
 	// }
-	// --				--
-	// OPENCL SUTFF
+	// </PRE OPENCL KERNEL>
+
+	// <OPENCL>
 	// subject_vector_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
 	// 	(size_t)input_vector_length, &input[input_index], &err);
 	// checkErr(err, "subject_vector_buffer");
 
-	err = command_queue.enqueueWriteBuffer(subject_vector_buffer, CL_TRUE, 0, input_vector_length, &input[input_index]);
-	checkErr(err, "enqueueWriteBuffer()");
+	// err = command_queue.enqueueWriteBuffer(subject_vector_buffer, CL_TRUE, 0, input_vector_length, &input[input_index]);
+	// checkErr(err, "subject_vector_buffer: enqueueWriteBuffer()");
 
-	manhattan_distance_kernel.setArg(0, subject_vector_buffer);
-	checkErr(err, "kernel(0)");
+	// manhattan_distance_kernel.setArg(0, subject_vector_buffer);
+	// // checkErr(err, "kernel(0)");
+	manhattan_distance_kernel.setArg(5, input_index);
+	checkErr(err, "manhattan_distance_kernel: kernel(5)");
 
 	cl::Event end_event;
-	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(input_size), cl::NDRange(1,1), NULL, &end_event);
-	checkErr(err, "enqueueNDRangeKernel()");
+	// err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(input_size), cl::NDRange(1,1), NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(input_size), cl::NDRange(64,64), NULL, &end_event);
+	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
 
 	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
 		map_side_size*map_side_size, distance_map);
-	checkErr(err, "enqueueReadBuffer()");
-	// ---
+	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
+	// </OPENCL>
 
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 		if (distance_map[distance_index] < winnerDistance){
 			winnerDistance = distance_map[distance_index];
 			winner = distance_index;
 		}
-		cout << distance_map[distance_index] << "\t";
+		//cout << distance_map[distance_index] << "\t";
 	}
 	return winner;
 }
@@ -393,7 +412,23 @@ void drawProgessBar(int current, int max){
 }
 
 int main(){
-	// OPENCL STUFF
+
+	// <INPUT INIT>
+	min = 0;
+	max = 10000;
+	range = max - min;
+	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
+	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+
+	// input = initialiseRandomArray(input_size, input_vector_length);
+	// writeToFile(input, input_size, "input.dat");
+	input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
+	writeToFile(input, input_size, "input_clustered.dat");
+
+	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
+	// </INPUT INIT>
+
+	// <OPENCL>
 	vector<cl::Platform> platforms;
 	cl::Platform::get(&platforms);
 
@@ -421,36 +456,73 @@ int main(){
 	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		(size_t)(map_side_size*map_side_size), distance_map, &err);
 	checkErr(err, "distance_map_buffer");
-	subject_vector_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
-		(size_t)input_vector_length, distance_map, &err);
+	// subject_vector_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+	// 	(size_t)input_vector_length, distance_map, &err);
 	checkErr(err, "subject_vector_buffer");
+	input_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+		(size_t)input_size*input_vector_length, input, &err);
+	checkErr(err, "input_buffer");
+	gauss_value_list_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+		(size_t)map_side_size, gauss_value_list, &err);
+	checkErr(err, "gauss_value_list_buffer");
 
 	command_queue = cl::CommandQueue(CPU_context, devices[0],0,&err);
 	checkErr(err, "command_queue()");
 
-	std::ifstream file("manhattan_distance.cl");
-	checkErr(file.is_open() ? CL_SUCCESS:-1, "manhattan_distance.cl");
-	string prog(std::istreambuf_iterator<char>(file), (std::istreambuf_iterator<char>()));
+	// <MANHATTAN_DISTANCE STUFF>
+	std::ifstream manhattan_file("manhattan_distance.cl");
+	checkErr(manhattan_file.is_open() ? CL_SUCCESS:-1, "manhattan_distance.cl");
+	string manhattan_distance_code(std::istreambuf_iterator<char>(manhattan_file), (std::istreambuf_iterator<char>()));
 
-	cl::Program::Sources source(1, std::make_pair(prog.c_str(), prog.length()+1));
-	manhattan_distance_prog = cl::Program(CPU_context, source);
+	cl::Program::Sources manhattan_distance_source(1, std::make_pair(manhattan_distance_code.c_str(), manhattan_distance_code.length()+1));
+	cl::Program manhattan_distance_prog(CPU_context, manhattan_distance_source);
 	err = manhattan_distance_prog.build(devices, "");
-	checkErr(err, "Program::build()");
+	checkErr(err, "Program::build(): manhattan_distance_prog");
 
 	manhattan_distance_kernel = cl::Kernel(manhattan_distance_prog, "manhattan_distance");
 	checkErr(err, "manhattan_distance_kernel");	
-	// manhattan_distance_kernel.setArg(0, subject_vector_buffer);
-	// checkErr(err, "kernel(0)");
+	manhattan_distance_kernel.setArg(0, input_buffer);
+	checkErr(err, "manhattan_distance_kernel: kernel(0)");
 	// manhattan_distance_kernel.setArg(1, map_buffer);
 	// checkErr(err, "kernel(1)");
 	manhattan_distance_kernel.setArg(2, distance_map_buffer);
-	checkErr(err, "kernel(2)");
+	checkErr(err, "manhattan_distance_kernel: kernel(2)");
 	manhattan_distance_kernel.setArg(3, input_vector_length);
-	checkErr(err, "kernel(3)");
+	checkErr(err, "manhattan_distance_kernel: kernel(3)");
 	int map_size = map_side_size*map_side_size;
 	manhattan_distance_kernel.setArg(4, map_size);
-	checkErr(err, "kernel(4)");
-	// ---
+	checkErr(err, "manhattan_distance_kernel: kernel(4)");
+	// </MANHATTAN_DISTANCE STUFF>
+
+	// <UPDATE_WEIGHT STUFF>
+	std::ifstream file("update_weight.cl");
+	checkErr(file.is_open() ? CL_SUCCESS:-1, "update_weight.cl");
+	string update_weight_code(std::istreambuf_iterator<char>(file), (std::istreambuf_iterator<char>()));
+
+	cl::Program::Sources update_weight_source(1, std::make_pair(update_weight_code.c_str(), update_weight_code.length()+1));
+	cl::Program update_weight_prog(CPU_context, update_weight_source);
+	err = update_weight_prog.build(devices, "");
+	checkErr(err, "Program::build(): update_weight_prog");
+
+	update_weight_kernel = cl::Kernel(update_weight_prog, "update_weight");
+	checkErr(err, "update_weight_kernel");
+
+	// KERNEL ARG 0 (map) ADDED LATER
+	update_weight_kernel.setArg(1, input_buffer);
+	checkErr(err, "update_weight_kernel: kernel(1)");
+	update_weight_kernel.setArg(2, gauss_value_list_buffer);
+	checkErr(err, "update_weight_kernel: kernel(2)");
+	// KERNEL ARG 3 (winner_index) ADDED LATER
+	// KERNEL ARG 4 (input_start_index) ADDED LATER
+	update_weight_kernel.setArg(5, input_vector_length);
+	checkErr(err, "update_weight_kernel: kernel(5)");
+	update_weight_kernel.setArg(6, map_side_size);
+	checkErr(err, "update_weight_kernel: kernel(6)");
+	update_weight_kernel.setArg(7, map_side_size*map_side_size);
+	checkErr(err, "update_weight_kernel: kernel(7)");
+	// </UPDATE_WEIGHT STUFF>
+
+	// </OPENCL>
 
 	cout << "== Stuff to do..\t ==" << endl
 			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
@@ -463,7 +535,7 @@ int main(){
 			<< "\t\t+ Set up repeated map building routine" << endl
 			<< "\t- Tune gaussian curve\t\t\t\t<DONE>" << endl
 			<< "\t- Set up openCL version\t\t\t\t<IN PROGRESS>" << endl
-			<< "\t\t+ Put functions into C code\t\t<IN PROGRESS>" << endl
+			<< "\t\t+ Put functions into C code" << endl
 			<< "\t\t+ Put functions into separate files" << endl
 			<< "\t\t+ Add openCL stuff" << endl
 			<< "==\t\t\t==\n" << endl;
@@ -482,23 +554,6 @@ int main(){
 			<< "\t- Max Compute Units (per device)\t" << compute_units << endl
  			<< "==\t\t\t==" << endl;
 
-	min = 0;
-	max = 10000;
-	range = max - min;
-	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
-	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
-
-	//OPENCL STUFF
-
-	// ---
-
-	// input = initialiseRandomArray(input_size, input_vector_length);
-	// writeToFile(input, input_size, "input.dat");
-	input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
-	writeToFile(input, input_size, "input_clustered.dat");
-
-	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
-
 	int current;
 	int *winner = (int *)malloc(sizeof(int));
 	int iteration;
@@ -509,18 +564,26 @@ int main(){
 	for (int current_trial = 0; current_trial < trials; current_trial++){
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 
-		//OPENCL STUFF
+		// <OPENCL>
 		map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 			(size_t)input_size*input_vector_length, map, &err);
 		checkErr(err, "map_buffer");
+		
 		manhattan_distance_kernel.setArg(1, map_buffer);
-		checkErr(err, "kernel(1)");
-		// ---
+		checkErr(err, "manhattan_distance_kernel: kernel(1)");
+
+		update_weight_kernel.setArg(0, map_buffer);
+		checkErr(err, "update_weight_kernel: kernel(0)");
+		// </OPENCL>
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.ppm");
 		for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
 			previous_map[i] = map[i];
 		}
-		recalculateGaussList();
+		calculateGaussList();
+		// <OPENCL>
+		err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
+		checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
+		// </OPENCL>
 		writeToFile(gauss_value_list, map_side_size, "learning_rates.dat");
 		time_t current_time = time(0);
 		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&current_time));
@@ -534,21 +597,29 @@ int main(){
 				*winner = findWinner(input_index);
 				// winner = 1;
 				update_weights(*winner, input_index, input_vector_length);
+				// <OPENCL>
+				// err = command_queue.enqueueWriteBuffer(map_buffer, CL_TRUE, 0,input_size*input_vector_length, map);
+				// checkErr(err, "enqueueWriteBuffer(): map_buffer");
+				// </OPENCL>
 			}
 			if (iteration%cycle_length==0 && iteration != 0){
 				// if (gauss_value > 1){
 				// 	gauss_value--;
 				// 	cout << "Neighbourhood reduced\t";
-				// 	recalculateGaussList();
+				// 	calculateGaussList();
 				// }
 				// else if (gauss_value >= 0.5){
 				// 	gauss_value -= 0.1;
 				// 	cout << "Neighbourhood reduced\t";
-				// 	recalculateGaussList();
+				// 	calculateGaussList();
 				// }
 				if (gauss_value_list[1] != 0){
 					//cout << "Neighbourhood reduced\t" << endl;
 					shuntGaussList();
+					// <OPENCL>
+					err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
+					checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
+					// </OPENCL>
 				}
 				// std::ostringstream convert;   // stream used for the conversion
 				// convert << iteration;      
@@ -563,6 +634,9 @@ int main(){
 
 		}
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
+		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0,
+		map_side_size*map_side_size, map);
+		checkErr(err, "map_buffer: enqueueReadBuffer()");
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
 		//cout << "Completeion at iteration " << iteration << "!" << endl;
 		// drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/convergent_map.html");
