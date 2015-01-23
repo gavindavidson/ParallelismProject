@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 12288
+#define input_size 5120
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -349,19 +349,20 @@ int findWinner(int input_index){
 
 	end_event.wait();
 
-	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size, distance_map);
-	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
-	// </OPENCL>
+	// err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
+	// 	map_side_size*map_side_size, distance_map);
+	// checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
+	// // </OPENCL>
 
-	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
-		if (distance_map[distance_index] < winnerDistance){
-			winnerDistance = distance_map[distance_index];
-			winner = distance_index;
-		}
-		//cout << distance_map[distance_index] << "\t";
-	}
-	return winner;
+	// for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
+	// 	if (distance_map[distance_index] < winnerDistance){
+	// 		winnerDistance = distance_map[distance_index];
+	// 		winner = distance_index;
+	// 	}
+	// 	//cout << distance_map[distance_index] << "\t";
+	// }
+	// return winner;
+	return 1;
 }
 // float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 float quantisationError(int input_index){
