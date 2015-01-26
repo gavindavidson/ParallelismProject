@@ -266,7 +266,7 @@ void printVector(vector<float> a){
 	Function that changes the weights of the map according to their position relative to the winning point and the input vector. This is done
 	using the 
 */
-void update_weights(int winner_index, int input_start_index, int vector_size){
+void update_weights(int input_start_index, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
 	// for (int map_index = 0; map_index < map_size; map_index++){
@@ -326,7 +326,7 @@ void update_weights(int winner_index, int input_start_index, int vector_size){
 	//cout << "\n\n=====\n\n";
 }
 
-int findWinner(int input_index){
+void findWinner(int input_index){
 	int winner = 0;
 	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	float winnerDistance = FLT_MAX;
@@ -376,6 +376,25 @@ int findWinner(int input_index){
 	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
 	//</OPENCL>
 
+	// for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
+	// 	if (distance_map[distance_index] < winnerDistance){
+	// 		winnerDistance = distance_map[distance_index];
+	// 		winner = distance_index;
+	// 	}
+	// 	//cout << distance_map[distance_index] << "\t";
+	// }
+	// return winner;
+}
+// float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
+float quantisationError(int input_index){
+	int winner = 0;
+	findWinner(input_index);
+	//<OPENCL>
+	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
+		map_side_size*map_side_size, distance_map);
+	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
+	//</OPENCL>
+	float winnerDistance = FLT_MAX;
 	for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 		if (distance_map[distance_index] < winnerDistance){
 			winnerDistance = distance_map[distance_index];
@@ -383,12 +402,7 @@ int findWinner(int input_index){
 		}
 		//cout << distance_map[distance_index] << "\t";
 	}
-	return winner;
-	//return 0;
-}
-// float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
-float quantisationError(int input_index){
-	int winner = findWinner(input_index);
+
 	float local_average_error = 0;
 	for (int i = 0; i < input_vector_length; i++){
 		local_average_error += abs(input[input_index] - map[winner*input_vector_length]);
@@ -646,9 +660,9 @@ int main(){
 			//cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 			//cout << "Iteration: " << iteration << "\t" << asctime(localtime(&current_time));
 			for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
-				*winner = findWinner(input_index);
+				findWinner(input_index);
 				// winner = 1;
-				update_weights(*winner, input_index, input_vector_length);
+				update_weights(input_index, input_vector_length);
 				// <OPENCL>
 				// err = command_queue.enqueueWriteBuffer(map_buffer, CL_TRUE, 0,input_size*input_vector_length, map);
 				// checkErr(err, "enqueueWriteBuffer(): map_buffer");
