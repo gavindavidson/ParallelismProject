@@ -284,16 +284,16 @@ void update_weights(int winner_index, int input_start_index, int vector_size){
 	checkErr(err, "update_weight_kernel: kernel(4)");
 
 	cl::Event end_event;
-	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange	, NULL, &end_event);
 	checkErr(err, "update_weight_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
 
-	int *array = (int *)malloc(sizeof(int)*map_side_size*map_side_size);
+	int *array = (int *)malloc(sizeof(int)*map_side_size*map_side_size*map_side_size);
 	err = command_queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size, array);
+		map_side_size*map_side_size*sizeof(int), array);
 	checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
-	cout << "array[0] = " << array[0];
+	//cout << "array[0] = " << array[0];
 	for (int i = 0; i < map_side_size*map_side_size; i++){
 		if (array[i] != array[0]){
 			//cout << "FAIL: " << array[i] << endl;
@@ -369,7 +369,7 @@ int findWinner(int input_index){
 	err = command_queue.enqueueReadBuffer(winner_index_buffer, CL_TRUE, 0,
 		sizeof(int), array);
 	checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
-	cout << "Winner: \t" << array[0] << "\t";
+	//cout << "Winner: \t" << array[0] << "\t";
 
 	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
 		map_side_size*map_side_size, distance_map);
@@ -384,6 +384,7 @@ int findWinner(int input_index){
 		//cout << distance_map[distance_index] << "\t";
 	}
 	return winner;
+	//return 0;
 }
 // float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 float quantisationError(int input_index){
@@ -492,8 +493,8 @@ int main(){
 	winner_index_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, 
 		sizeof(int), winner_array, &err);
 	checkErr(err, "winner_index_buffer");
-	output_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, 
-		sizeof(int)*map_side_size*map_side_size, winner_array, &err);
+	output_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE, 
+		sizeof(int)*map_side_size*map_side_size, NULL, &err);
 	checkErr(err, "output_buffer");
 
 
