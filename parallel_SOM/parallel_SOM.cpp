@@ -289,18 +289,18 @@ void update_weights(int input_start_index, int vector_size){
 
 	end_event.wait();
 
-	int *array = (int *)malloc(sizeof(int)*map_side_size*map_side_size*map_side_size);
-	err = command_queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size*sizeof(int), array);
-	checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
-	//cout << "array[0] = " << array[0];
-	for (int i = 0; i < map_side_size*map_side_size; i++){
-		if (array[i] != array[0]){
-			//cout << "FAIL: " << array[i] << endl;
-			//break;
-			cout << "\tIndex: " << i << " = " << array[i] << endl;
-		}
-	}
+	// int *array = (int *)malloc(sizeof(int)*map_side_size*map_side_size*map_side_size);
+	// err = command_queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
+	// 	map_side_size*map_side_size*sizeof(int), array);
+	// checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
+	// //cout << "array[0] = " << array[0];
+	// for (int i = 0; i < map_side_size*map_side_size; i++){
+	// 	if (array[i] != array[0]){
+	// 		//cout << "FAIL: " << array[i] << endl;
+	// 		//break;
+	// 		cout << "\tIndex: " << i << " = " << array[i] << endl;
+	// 	}
+	// }
 	// </OPENCL>
 
 	// for (int current_position = 0; current_position < map_side_size*map_side_size; current_position++){

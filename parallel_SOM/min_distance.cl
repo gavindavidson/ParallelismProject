@@ -1,7 +1,7 @@
 __kernel void min_distance(
 	__global float * distance_map,
  	const int map_size,
-	int *winner)
+	__global int *winner)
 {
 	float winner_distance = distance_map[0];
 	for (int i = 1; i < map_size; i++){
