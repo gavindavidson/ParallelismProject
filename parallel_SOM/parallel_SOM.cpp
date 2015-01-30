@@ -10,8 +10,8 @@
 
 
 // PRE OPENCL TESTING
-#include "manhattan_distance.h"
-#include "update_weight.h"
+// #include "manhattan_distance.h"
+// #include "update_weight.h"
 // =================
 #include "cl.hpp"
 #include "util.hpp"
@@ -57,7 +57,7 @@ float best_quantisation_error;
 // OPENCL
 int compute_units;
 cl_int err;
-cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_map_buffer;
+cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_map_buffer, winner_distance_map_buffer;
 //cl::Buffer subject_vector_buffer;
 cl::Context CPU_context;
 
@@ -362,21 +362,21 @@ void findWinner(int input_index){
 
 	end_event.wait();
 
-	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
-	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(computer_units), cl::NullRange, NULL, &end_event);
+	//err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
 
-	int *array = (int *)malloc(sizeof(int));
-	err = command_queue.enqueueReadBuffer(winner_index_buffer, CL_TRUE, 0,
-		sizeof(int), array);
-	checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
+	// int *array = (int *)malloc(sizeof(int));
+	// err = command_queue.enqueueReadBuffer(winner_index_buffer, CL_TRUE, 0,
+	// 	sizeof(int), array);
+	// checkErr(err, "winner_index_buffer: enqueueReadBuffer()");
 	//cout << "Winner: \t" << array[0] << "\t";
 
-	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size, distance_map);
-	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
+	// err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
+	// 	map_side_size*map_side_size, distance_map);
+	// checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
 	//</OPENCL>
 
 	// for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
@@ -477,7 +477,7 @@ int main(){
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
 	CPU_context = cl::Context(
-		CL_DEVICE_TYPE_CPU,
+		CL_DEVICE_TYPE_GPU,
 		context_props,
 		NULL,
 		NULL,
@@ -590,16 +590,16 @@ int main(){
 	checkErr(err, "min_distance_kernel: kernel(1)");
 	min_distance_kernel.setArg(2, winner_index_buffer);
 	checkErr(err, "min_distance_kernel: kernel(2)");
-	/*
-	min_distance_kernel.setArg(0, distance_map_buffer);
-	checkErr(err, "min_distance_kernel: kernel(0)");
-	min_distance_kernel.setArg(1, winner_index_map_buffer);
-	checkErr(err, "min_distance_kernel: kernel(1)");
-	min_distance_kernel.setArg(2, winner_distance_map_buffer);
-	checkErr(err, "min_distance_kernel: kernel(2)");
-	min_distance_kernel.setArg(3, map_side_size*map_side_size/compute_units);
-	checkErr(err, "min_distance_kernel: kernel(3)");
-	*/
+	
+	// min_distance_kernel.setArg(0, distance_map_buffer);
+	// checkErr(err, "min_distance_kernel: kernel(0)");
+	// min_distance_kernel.setArg(1, winner_index_map_buffer);
+	// checkErr(err, "min_distance_kernel: kernel(1)");
+	// min_distance_kernel.setArg(2, winner_distance_map_buffer);
+	// checkErr(err, "min_distance_kernel: kernel(2)");
+	// min_distance_kernel.setArg(3, map_side_size*map_side_size/compute_units);
+	// checkErr(err, "min_distance_kernel: kernel(3)");
+	
 	// </MIN_DISTANCE STUFF>
 
 	// </OPENCL>
