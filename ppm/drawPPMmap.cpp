@@ -153,7 +153,7 @@ int drawMap(float *map, int in_map_size, int vector_length, string filename){
 	image -> data = pixels;
 
 	char const * c_filename = filename.c_str();
-	std::cout << "FILE: " << filename << std::endl;
+	std::cout << "<drawPPMmap FILE: " << filename << ">" << std::endl;
 	writePPM(c_filename, image);
 	return 0;
 

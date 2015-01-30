@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 64
+#define map_side_size 16
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 12800
+#define input_size 1024
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -477,7 +477,7 @@ int main(){
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
 	CPU_context = cl::Context(
-		CL_DEVICE_TYPE_GPU,
+		CL_DEVICE_TYPE_CPU,
 		context_props,
 		NULL,
 		NULL,
@@ -665,8 +665,8 @@ int main(){
 		checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
 		// </OPENCL>
 		writeToFile(gauss_value_list, map_side_size, "learning_rates.dat");
-		time_t current_time = time(0);
-		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&current_time));
+		time_t start_time = time(0);
+		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&start_time));
 		// cout << "TRIAL " << current_trial << endl;
 		for (iteration = 0; iteration < cycle_length*map_side_size; iteration++){
 			drawProgessBar(iteration, cycle_length*map_side_size);
@@ -714,6 +714,8 @@ int main(){
 
 		}
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
+		int seconds = difftime(time(0), start_time);
+		cout << endl << "Finished after: " << seconds << " seconds" << endl;
 		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0,
 		map_side_size*map_side_size, map);
 		checkErr(err, "map_buffer: enqueueReadBuffer()");
@@ -724,11 +726,12 @@ int main(){
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			total_quantisation_error += quantisationError(input_index);
 		}
-		cout << endl << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
+		cout << "Average Quantisation Error: " << total_quantisation_error/input_size << endl;
 		std::ostringstream convert;   // stream used for the conversion
 		convert << current_trial;
 		drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/map_trial_" + convert.str() + ".ppm");
 		writeToFile(map, map_side_size*map_side_size, "map_"+convert.str() + ".dat");
+		cout << endl;
 		if (current_trial == 0){
 			best_quantisation_error = total_quantisation_error;
 			best_map = map;
