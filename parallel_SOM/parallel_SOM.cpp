@@ -470,9 +470,15 @@ int main(){
 
 	// <OPENCL>
 	vector<cl::Platform> platforms;
-	cl::Platform::get(&platforms);
-
 	string platform_name;
+	cl::Platform::get(&platforms);
+	cout << endl;
+	for (int i = 0; i < platforms.size(); i++){
+		platforms[i].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
+		cout << "Platform " << i << ": " << platform_name << endl;
+	}
+	cout << endl;
+
 	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
