@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
+#define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 1024
+#define input_size 5120
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -614,10 +614,13 @@ int main(){
 			<< "\t\t+ Set up quantisation error checker" << endl
 			<< "\t\t+ Set up repeated map building routine" << endl
 			<< "\t- Tune gaussian curve\t\t\t\t<DONE>" << endl
-			<< "\t- Set up openCL version\t\t\t\t<IN PROGRESS>" << endl
+			<< "\t- Set up openCL version\t\t\t\t<DONE>" << endl
 			<< "\t\t+ Put functions into C code" << endl
 			<< "\t\t+ Put functions into separate files" << endl
 			<< "\t\t+ Add openCL stuff" << endl
+			<< "\t- Gaussian clusters\t\t\t\t" << endl
+			<< "\t- Explore neighbourhood functions\t\t" << endl
+			<< "\t- Explore distance metrics\t\t\t" << endl
 			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
