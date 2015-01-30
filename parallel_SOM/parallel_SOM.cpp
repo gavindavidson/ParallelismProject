@@ -477,7 +477,7 @@ int main(){
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
 	CPU_context = cl::Context(
-		CL_DEVICE_TYPE_CPU,
+		CL_DEVICE_TYPE_GPU,
 		context_props,
 		NULL,
 		NULL,
