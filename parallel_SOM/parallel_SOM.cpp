@@ -394,7 +394,7 @@ float quantisationError(int input_index){
 	findWinner(input_index);
 	//<OPENCL>
 	err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size, distance_map);
+		sizeof(float)*map_side_size*map_side_size, distance_map);
 	checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
 	//</OPENCL>
 	float winnerDistance = FLT_MAX;
@@ -479,9 +479,9 @@ int main(){
 	}
 	cout << endl;
 
-	platforms[1].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
+	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
 
-	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[1])(), 0};
+	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
 	CPU_context = cl::Context(
 		CL_DEVICE_TYPE_CPU,
 		context_props,
@@ -706,7 +706,7 @@ int main(){
 					//cout << "Neighbourhood reduced\t" << endl;
 					shuntGaussList();
 					// <OPENCL>
-					err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
+					err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, sizeof(float)*map_side_size, gauss_value_list);
 					checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
 					// </OPENCL>
 				}
@@ -725,8 +725,7 @@ int main(){
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
 		int seconds = difftime(time(0), start_time);
 		cout << endl << "Finished after: " << seconds << " seconds" << endl;
-		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0,
-		map_side_size*map_side_size, map);
+		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size, map);
 		checkErr(err, "map_buffer: enqueueReadBuffer()");
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
 		//cout << "Completeion at iteration " << iteration << "!" << endl;
