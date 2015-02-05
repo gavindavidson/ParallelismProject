@@ -2,14 +2,15 @@ __kernel void update_weight(
 	__global float *map,
 	__global float *input,
 	__global float *gauss_value_list,
-	__global int *winner_index_array,
+	//__global int *winner_index_array,
+	int winner_index,
 	int input_start_index,
 	int vector_length,
 	int map_side_size//,
 	//int *output
 	)
 {
-	int winner_index = winner_index_array[0];
+	//int winner_index = winner_index_array[0];
 	int current_id = get_global_id(0);
 	//output[current_id] = winner_index;
 	int a_x, a_y, b_x, b_y;

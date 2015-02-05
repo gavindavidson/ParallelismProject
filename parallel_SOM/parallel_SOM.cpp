@@ -51,13 +51,14 @@ float gauss_value = sqrt(map_side_size)/10;
 float gauss_value_list[map_side_size];
 const double pi = 3.14159265359;
 
-float *map, *input, *previous_map, *distance_map, *best_map;
+float *map, *input, *previous_map, *distance_map, *best_map, *winner_distance_array;
+int *winner_index_array;
 float best_quantisation_error;
 
 // OPENCL
 int compute_units;
 cl_int err;
-cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_map_buffer, winner_distance_map_buffer;
+cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_array_buffer, winner_distance_array_buffer;
 //cl::Buffer subject_vector_buffer;
 cl::Context CPU_context;
 
@@ -361,12 +362,35 @@ void findWinner(int input_index){
 	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
+	
+	cout << "Hello" << endl;
 
-	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
-	//err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
+	//err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
+	cout << "Goodbye" << endl;
+	// err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
+	// 	sizeof(float)*compute_units, winner_distance_array);
+	// cout << "Goodbye" << endl;
+	// checkErr(err, "winner_distance_array_buffer: enqueueReadBuffer()");
+	// err = command_queue.enqueueReadBuffer(winner_index_array_buffer, CL_TRUE, 0,
+	// 	sizeof(float)*compute_units, winner_index_array);
+	// checkErr(err, "winner_index_array_buffer: enqueueReadBuffer()");
+
+	// float current_min_value = FLT_MAX;
+	int current_min_index = 0;
+	// for (int i = 0; i < map_side_size*map_side_size; i++){
+	// 	if (winner_distance_array[i] < current_min_value){
+	// 		current_min_index = i;
+	// 	}
+	// }
+	update_weight_kernel.setArg(3, 12);
+	checkErr(err, "update_weight_kernel: kernel(3)");
+
+
+	// winner_distance_array_buffer and winner_index_array_buffer
 
 	// int *array = (int *)malloc(sizeof(int));
 	// err = command_queue.enqueueReadBuffer(winner_index_buffer, CL_TRUE, 0,
@@ -496,10 +520,21 @@ int main(){
 
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
 
-	distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+	int chunk_size = map_side_size*map_side_size + (compute_units - (map_side_size*map_side_size)%compute_units) / compute_units;
+	//(62*5+ (64-((62*5)%64))) % 64 
 
+	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
+	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
+	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
+	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
+		distance_map[i] = -1;
+	}
+
+	// distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	// 	sizeof(float)*(map_side_size*map_side_size), distance_map, &err);
 	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
-		sizeof(float)*(map_side_size*map_side_size), distance_map, &err);
+		sizeof(float)*(chunk_size*compute_units), distance_map, &err);
 	checkErr(err, "distance_map_buffer");
 	input_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*input_size*input_vector_length, input, &err);
@@ -514,12 +549,12 @@ int main(){
 		sizeof(int), winner_array, &err);
 	checkErr(err, "winner_index_buffer");
 
-	winner_index_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
+	winner_index_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
 		sizeof(int)*compute_units, &err);
-	checkErr(err, "winner_index_map_buffer");
-	winner_distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
+	checkErr(err, "winner_index_array_buffer");
+	winner_distance_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
 		sizeof(float)*compute_units, &err);
-	checkErr(err, "winner_distance_map_buffer");
+	checkErr(err, "winner_distance_array_buffer");
 
 
 	command_queue = cl::CommandQueue(CPU_context, devices[0],0,&err);
@@ -565,8 +600,8 @@ int main(){
 	checkErr(err, "update_weight_kernel: kernel(1)");
 	update_weight_kernel.setArg(2, gauss_value_list_buffer);
 	checkErr(err, "update_weight_kernel: kernel(2)");
-	update_weight_kernel.setArg(3, winner_index_buffer);
-	checkErr(err, "update_weight_kernel: kernel(3)");
+	// update_weight_kernel.setArg(3, winner_index_buffer);
+	// checkErr(err, "update_weight_kernel: kernel(3)");
 	// KERNEL ARG 4 (input_start_index) ADDED LATER
 	update_weight_kernel.setArg(5, input_vector_length);
 	checkErr(err, "update_weight_kernel: kernel(5)");
@@ -590,21 +625,21 @@ int main(){
 	min_distance_kernel = cl::Kernel(min_distance_prog, "min_distance");
 	checkErr(err, "min_distance_kernel");
 
-	min_distance_kernel.setArg(0, distance_map_buffer);
-	checkErr(err, "min_distance_kernel: kernel(0)");
-	min_distance_kernel.setArg(1, map_side_size*map_side_size);
-	checkErr(err, "min_distance_kernel: kernel(1)");
-	min_distance_kernel.setArg(2, winner_index_buffer);
-	checkErr(err, "min_distance_kernel: kernel(2)");
-	
 	// min_distance_kernel.setArg(0, distance_map_buffer);
 	// checkErr(err, "min_distance_kernel: kernel(0)");
-	// min_distance_kernel.setArg(1, winner_index_map_buffer);
+	// min_distance_kernel.setArg(1, map_side_size*map_side_size);
 	// checkErr(err, "min_distance_kernel: kernel(1)");
-	// min_distance_kernel.setArg(2, winner_distance_map_buffer);
+	// min_distance_kernel.setArg(2, winner_index_buffer);
 	// checkErr(err, "min_distance_kernel: kernel(2)");
-	// min_distance_kernel.setArg(3, map_side_size*map_side_size/compute_units);
-	// checkErr(err, "min_distance_kernel: kernel(3)");
+
+	min_distance_kernel.setArg(0, distance_map_buffer);
+	checkErr(err, "min_distance_kernel: kernel(0)");
+	min_distance_kernel.setArg(1, winner_index_array_buffer);
+	checkErr(err, "min_distance_kernel: kernel(1)");
+	min_distance_kernel.setArg(2, winner_distance_array_buffer);
+	checkErr(err, "min_distance_kernel: kernel(2)");
+	min_distance_kernel.setArg(3, chunk_size);
+	checkErr(err, "min_distance_kernel: kernel(3)");
 	
 	// </MIN_DISTANCE STUFF>
 
