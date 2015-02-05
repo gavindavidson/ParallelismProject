@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 16
+#define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 1024
+#define input_size 5120
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -725,7 +725,7 @@ int main(){
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
 		int seconds = difftime(time(0), start_time);
 		cout << endl << "Finished after: " << seconds << " seconds" << endl;
-		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size, map);
+		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size*input_vector_length, map);
 		checkErr(err, "map_buffer: enqueueReadBuffer()");
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
 		//cout << "Completeion at iteration " << iteration << "!" << endl;
