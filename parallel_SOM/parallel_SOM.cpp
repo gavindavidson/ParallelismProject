@@ -362,31 +362,31 @@ void findWinner(int input_index){
 	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
-	
-	cout << "Hello" << endl;
 
 	//err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
 	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
-	cout << "Goodbye" << endl;
-	// err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
-	// 	sizeof(float)*compute_units, winner_distance_array);
-	// cout << "Goodbye" << endl;
-	// checkErr(err, "winner_distance_array_buffer: enqueueReadBuffer()");
-	// err = command_queue.enqueueReadBuffer(winner_index_array_buffer, CL_TRUE, 0,
-	// 	sizeof(float)*compute_units, winner_index_array);
-	// checkErr(err, "winner_index_array_buffer: enqueueReadBuffer()");
+	err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
+		sizeof(float)*compute_units, winner_distance_array);
+	checkErr(err, "winner_distance_array_buffer: enqueueReadBuffer()");
+	err = command_queue.enqueueReadBuffer(winner_index_array_buffer, CL_TRUE, 0,
+		sizeof(float)*compute_units, winner_index_array);
+	checkErr(err, "winner_index_array_buffer: enqueueReadBuffer()");
 
-	// float current_min_value = FLT_MAX;
+	float current_min_value = FLT_MAX;
 	int current_min_index = 0;
-	// for (int i = 0; i < map_side_size*map_side_size; i++){
-	// 	if (winner_distance_array[i] < current_min_value){
-	// 		current_min_index = i;
-	// 	}
-	// }
-	update_weight_kernel.setArg(3, 12);
+	// cout << "WIA:\t";
+	for (int i = 0; i < compute_units; i++){
+		// cout << winner_index_array[i] << ": " << winner_distance_array[i] << "\t";
+		if (winner_distance_array[i] < current_min_value){
+			current_min_index = winner_index_array[i];
+			current_min_value = winner_distance_array[i];
+		}
+	}
+	// cout << endl;
+	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
 
@@ -399,9 +399,9 @@ void findWinner(int input_index){
 	//cout << "Winner: \t" << array[0] << "\t";
 
 	// err = command_queue.enqueueReadBuffer(distance_map_buffer, CL_TRUE, 0,
-	// 	map_side_size*map_side_size, distance_map);
+	// 	sizeof(float)*map_side_size*map_side_size, distance_map);
 	// checkErr(err, "distance_map_buffer: enqueueReadBuffer()");
-	//</OPENCL>
+	// //</OPENCL>
 
 	// for (int distance_index = 0; distance_index < map_side_size*map_side_size; distance_index++){
 	// 	if (distance_map[distance_index] < winnerDistance){
@@ -410,6 +410,13 @@ void findWinner(int input_index){
 	// 	}
 	// 	//cout << distance_map[distance_index] << "\t";
 	// }
+	// if (current_min_index != winner){
+	// 	// cout << current_min_index << " != " << winner << endl;
+	// 	cout << "Pass\t";
+	// } else {
+	// 	cout << "Fail\t";
+	// }
+	// cout << "W: " << winner << endl;
 	// return winner;
 }
 // float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
@@ -520,7 +527,14 @@ int main(){
 
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
 
-	int chunk_size = map_side_size*map_side_size + (compute_units - (map_side_size*map_side_size)%compute_units) / compute_units;
+	//int chunk_size = map_side_size*map_side_size + (compute_units - (map_side_size*map_side_size)%compute_units) / compute_units;
+	int chunk_size;
+	if ((map_side_size*map_side_size)% compute_units == 0){
+		chunk_size = (map_side_size*map_side_size)/ compute_units;
+	}else {
+		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
+	}
+	cout << "chunk_size: " << chunk_size << endl;
 	//(62*5+ (64-((62*5)%64))) % 64 
 
 	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
@@ -549,11 +563,11 @@ int main(){
 		sizeof(int), winner_array, &err);
 	checkErr(err, "winner_index_buffer");
 
-	winner_index_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
-		sizeof(int)*compute_units, &err);
+	winner_index_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+		sizeof(int)*compute_units, winner_index_array, &err);
 	checkErr(err, "winner_index_array_buffer");
-	winner_distance_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE,
-		sizeof(float)*compute_units, &err);
+	winner_distance_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+		sizeof(float)*compute_units, winner_distance_array, &err);
 	checkErr(err, "winner_distance_array_buffer");
 
 
