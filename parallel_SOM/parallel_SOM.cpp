@@ -47,7 +47,8 @@ float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be 
 
 int non_convergent_points = 0;
 
-float gauss_value = sqrt(map_side_size)/10;
+// float gauss_value = sqrt(map_side_size)/10;
+float gauss_value = 7.0/10;
 float gauss_value_list[map_side_size];
 const double pi = 3.14159265359;
 
