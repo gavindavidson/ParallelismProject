@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 32
+#define map_side_size 128
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 5120
+#define input_size 65536
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -539,10 +539,14 @@ int main(){
 
 	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
-	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
-	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
 	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
 		distance_map[i] = -1;
+	}
+	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
+	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
+	for (int i = 0; i < compute_units; i++){
+		winner_distance_array[i] = 0;
+		winner_index_array[i] = 0;
 	}
 
 	// distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,

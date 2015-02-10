@@ -23,9 +23,9 @@ __kernel void min_distance(
 	int local_winner_index = current_id*chunk_size;
 	int local_winner_distance = distance_map[local_winner_index];
 	for (int i = local_winner_index + 1; i < (current_id+1)*chunk_size; i++){
-		// if (distance_map[i] == -1){
-		// 	break;
-		// }
+		if (distance_map[i] == -1){
+			break;
+		}
 		if (local_winner_distance > distance_map[i]){
 			local_winner_distance = distance_map[i];
 			local_winner_index = i;
