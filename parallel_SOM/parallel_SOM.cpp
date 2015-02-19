@@ -28,12 +28,12 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 128
+#define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 65536
+#define input_size 256
 #define input_vector_length 3
 #define input_data_clusters 5
 
@@ -55,6 +55,9 @@ const double pi = 3.14159265359;
 float *map, *input, *previous_map, *distance_map, *best_map, *winner_distance_array;
 int *winner_index_array;
 float best_quantisation_error;
+
+std::clock_t local_start_time, global_start_time;
+int update_weight_time, manhattan_distance_time, min_distance_time, min_distance_read_time;
 
 // OPENCL
 int compute_units;
@@ -193,8 +196,8 @@ void calculateGaussList(){
 	float a = 1.0/(gauss_value*sqrt(2*pi));
 	//cout << "New gauss_value_list:\n[";
 	for (int x = 0; x < map_side_size; x++){
-		gauss_value_list[x] = a* exp(-(pow(x, 2)/(2*pow(gauss_value, 2))));
-
+		gauss_value_list[x] = a* exp(-(pow(x/5.0, 2)/(2*pow(gauss_value, 2))));
+		
 		// if (x == 0){
 		// 	gauss_value_list[x] = 1;
 		// }
@@ -283,14 +286,20 @@ void update_weights(int input_start_index, int vector_size){
 	// need winner index and input start index
 	// update_weight_kernel.setArg(3, winner_index);
 	// checkErr(err, "update_weight_kernel: kernel(3)");
+
 	update_weight_kernel.setArg(4, input_start_index);
 	checkErr(err, "update_weight_kernel: kernel(4)");
 
+	// start = std::clock();
+ //     // your test
+ //     std::cout << "Time: " << (std::clock() - start) / (double)(CLOCKS_PER_SEC / 1000) << " ms" << std::endl;
+	local_start_time = std::clock();
 	cl::Event end_event;
 	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange	, NULL, &end_event);
 	checkErr(err, "update_weight_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
+	update_weight_time += (std::clock() - local_start_time);
 
 	// int *array = (int *)malloc(sizeof(int)*map_side_size*map_side_size*map_side_size);
 	// err = command_queue.enqueueReadBuffer(output_buffer, CL_TRUE, 0,
@@ -358,17 +367,25 @@ void findWinner(int input_index){
 	manhattan_distance_kernel.setArg(4, input_index);
 	checkErr(err, "manhattan_distance_kernel: kernel(4)");
 
+	local_start_time = std::clock();
+
 	cl::Event end_event;
 	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
 	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
 
+	manhattan_distance_time += (std::clock() - local_start_time);
+	local_start_time = std::clock();
+
 	//err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(1), cl::NullRange, NULL, &end_event);
 	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
+	min_distance_time += (std::clock() - local_start_time);
+	local_start_time = std::clock();
+
 	err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
 		sizeof(float)*compute_units, winner_distance_array);
 	checkErr(err, "winner_distance_array_buffer: enqueueReadBuffer()");
@@ -389,6 +406,8 @@ void findWinner(int input_index){
 	// cout << endl;
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
+
+	min_distance_read_time += (std::clock() - local_start_time);
 
 
 	// winner_distance_array_buffer and winner_index_array_buffer
@@ -705,6 +724,11 @@ int main(){
 	// map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 	//for (iteration = 0; !convergent() || iteration == 0; iteration++){
 	for (int current_trial = 0; current_trial < trials; current_trial++){
+		update_weight_time = 0;
+		manhattan_distance_time = 0; 
+		min_distance_time = 0;
+		min_distance_read_time = 0;
+		global_start_time = std::clock();
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 
 		// <OPENCL>
@@ -733,6 +757,7 @@ int main(){
 		// cout << "TRIAL " << current_trial << endl;
 		for (iteration = 0; iteration < cycle_length*map_side_size; iteration++){
 			drawProgessBar(iteration, cycle_length*map_side_size);
+			
 			//current_time = time(0);
 			//cout << "Iteration: " << iteration << "\tNon convergent points: " << non_convergent_points << "\t" << asctime(localtime(&current_time));
 			//cout << "Iteration: " << iteration << "\t" << asctime(localtime(&current_time));
@@ -779,7 +804,13 @@ int main(){
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
 		int seconds = difftime(time(0), start_time);
 		cout << endl << "Finished after: " << seconds << " seconds" << endl;
-		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size*input_vector_length, map);
+		cout << "KERNEL EXECUTION:" << endl;
+			cout << "\tUpdate Weight:\t\t\t" << (update_weight_time/(double)(std::clock() - global_start_time))*100 << "%" << endl;
+			cout << "\tMinimum Distance:\t\t" << (min_distance_time/(double)(std::clock() - global_start_time))*100 << "%" << endl;
+			cout << "\tMinimum Distance Read Time:\t" << (min_distance_read_time/(double)(std::clock() - global_start_time))*100 << "%" << endl;
+			cout << "\tManhattan Distance:\t\t" << (manhattan_distance_time/(double)(std::clock() - global_start_time))*100 << "%" << endl;
+			cout << endl;
+			err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size*input_vector_length, map);
 		checkErr(err, "map_buffer: enqueueReadBuffer()");
 		//cout << "Convergent at iteration " << iteration << "!" << endl;
 		//cout << "Completeion at iteration " << iteration << "!" << endl;
