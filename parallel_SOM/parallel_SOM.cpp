@@ -33,11 +33,10 @@ THINGS TO CONSIDER:
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 256
+#define input_size 1024
 #define input_vector_length 3
 #define input_data_clusters 5
 
-using std::vector;
 using std::cout;
 using std::endl;
 using std::string;
@@ -108,6 +107,21 @@ void printArray(float *array, int size, int grouping){
 		}
 	}
 	cout << "]";
+}
+
+int readMapFromFile(string filename){
+	cout << "<Reading map file>" << endl;
+	string line;
+	std::ifstream map_file;
+	map_file.open(filename.c_str());
+	int count = 0;
+	while (std::getline(map_file, line)){
+		while(strtok(line.c_str(), token)){
+			count++;
+		}
+	}
+	map_file.close();
+	cout << "THERE ARE " << count << " THINGS!" << endl;
 }
 
 int writeToFile(float *data, int size, string filename){
@@ -715,6 +729,8 @@ int main(){
 			<< "\t- Devices available\t\t\t" << devices.size() << endl
 			<< "\t- Max Compute Units (per device)\t" << compute_units << endl
  			<< "==\t\t\t==" << endl;
+
+ 	readMapFromFile("map_0.dat");
 
 	int current;
 	int *winner = (int *)malloc(sizeof(int));
