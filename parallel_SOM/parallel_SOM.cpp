@@ -702,7 +702,7 @@ int main(int argc, char* argv[]){
 			<< "\t\t+ Put functions into C code" << endl
 			<< "\t\t+ Put functions into separate files" << endl
 			<< "\t\t+ Add openCL stuff" << endl
-			<< "\t- Gaussian clusters\t\t\t\t" << endl
+			<< "\t- Gaussian clusters\t\t\t\t<DONE>" << endl
 			<< "\t- Explore neighbourhood functions\t\t" << endl
 			<< "\t- Explore distance metrics\t\t\t" << endl
 			<< "==\t\t\t==\n" << endl;
