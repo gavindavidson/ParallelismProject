@@ -28,13 +28,13 @@ THINGS TO CONSIDER:
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-#define map_side_size 32
+// #define map_side_size 32
 #define trials 3
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
-#define input_size 1024
-#define input_vector_length 3
+// #define input_size 5120
+// #define input_vector_length 3
 #define input_data_clusters 5
 
 using std::cout;
@@ -44,11 +44,13 @@ using std::string;
 float max, min, range;
 float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be applied to a change in a point in a neighbourhood
 
-int non_convergent_points = 0;
+int input_vector_length = 0;
+int input_size = 0;
+int map_side_size = 0;
 
 // float gauss_value = sqrt(map_side_size)/10;
 float gauss_value = 7.0/10;
-float gauss_value_list[map_side_size];
+float *gauss_value_list;
 const double pi = 3.14159265359;
 
 float *map, *input, *previous_map, *distance_map, *best_map, *winner_distance_array;
@@ -109,19 +111,24 @@ void printArray(float *array, int size, int grouping){
 	cout << "]";
 }
 
-int readMapFromFile(string filename){
-	cout << "<Reading map file>" << endl;
+float* readInputFromFile(string filename){
+	cout << "<Reading input file>" << endl;
 	string line;
 	std::ifstream map_file;
 	map_file.open(filename.c_str());
 	int count = 0;
-	while (std::getline(map_file, line)){
-		while(strtok(line.c_str(), token)){
-			count++;
-		}
+	if (!map_file.is_open()){
+		cout << "File \"" << filename << "\" could not be opened" << endl;
+		exit(0);
+	}
+	map_file >> input_size;
+	map_file >> input_vector_length;
+	float *output = (float *)malloc(input_size*input_vector_length*sizeof(float));
+	for (int i = 0; i < input_size * input_vector_length; i++){
+		map_file >> output[i];
 	}
 	map_file.close();
-	cout << "THERE ARE " << count << " THINGS!" << endl;
+	return output;
 }
 
 int writeToFile(float *data, int size, string filename){
@@ -141,39 +148,16 @@ int writeToFile(float *data, int size, string filename){
 	return 0;
 }
 
-
 /*
 	Function produces a random dataset within certain predifined ranges
 */
 float * initialiseRandomArray(int array_size, int vector_length){
 	srand(time(NULL));				// Seed rand() with current time
-	cout << "<Producing random array>" << endl;
+	std::cout << "<Producing random array>" << std::endl;
 	//float output[map_size * vector_length];
 	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
 	for (int i = 0; i < (array_size * vector_length); i++){
 		output[i] = (rand()/(float)RAND_MAX) * range + min;
-	}
-	return output;
-}
-
-/*
-	Function produces a random dataset that is purposefully clustered for testing
-*/
-float * initialiseClusteredArray(int array_size, int vector_length, int clusters){
-	srand(time(NULL));
-	cout << "<Producing " << clusters << " cluster array>" << endl;
-	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
-	float centre;
-	float max_variance = max/20;	// Clusters are to be within 5% of the max value of the centre point
-	for (int outer = 0; outer < clusters; outer++){
-		centre = (rand()/(float)RAND_MAX) * range + min;
-		for (int inner = 0; inner < (array_size * vector_length)/clusters; inner++){
-			output[inner + (outer*(array_size * vector_length)/clusters)] = (rand()/(float)RAND_MAX) * max_variance + centre;
-			//cout << inner + (outer*(array_size * vector_length)/clusters) << " ";
-		}
-	}
-	for (int i = 0; i < (array_size * vector_length)%clusters; i++){
-		output[(array_size * vector_length) - 1 - i] = (rand()/(float)RAND_MAX) * range + min;
 	}
 	return output;
 }
@@ -187,20 +171,6 @@ bool checkArrayConvergence(float *a, float *b, int start_index, int vector_size)
 		}
 	}
 	return true;
-}
-
-bool convergent(){
-	int changed_points = 0;
-	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i = i + input_vector_length){
-		if (!checkArrayConvergence(map, previous_map, i, input_vector_length)){
-			changed_points++;
-		}
-	}
-	for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
-		previous_map[i] = map[i];
-	}
-	non_convergent_points = changed_points;
-	return changed_points <= map_convergence_tollerance*map_side_size*map_side_size;
 }
 
 /*
@@ -516,19 +486,42 @@ void drawProgessBar(int current, int max){
 	cout << "|" << std::flush;
 }
 
-int main(){
+int main(int argc, char* argv[]){
 
 	// <INPUT INIT>
+	string input_filename;
+	if (argc < 3){
+		cout << "Standard usage: ./parallel_SOM <input file name> <map side size>" << endl;
+	}
+	if (argc > 1){
+		input_filename = argv[1];
+	}
+	else {
+		cout << "Enter input filename:\t";
+		std::cin >> input_filename;
+	}
+	input = readInputFromFile(input_filename);
+
+	if (argc > 2){
+		// argv[2] >> map_side_size;
+		map_side_size = atoi(argv[2]);
+	}
+	else {
+		cout << "Enter map dimension (x and y dimenions will be equal): \t";
+		std::cin >> map_side_size;
+	}
+
 	min = 0;
 	max = 10000;
 	range = max - min;
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
+	gauss_value_list = (float *)malloc(sizeof(float)*map_side_size);
 	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 
 	// input = initialiseRandomArray(input_size, input_vector_length);
 	// writeToFile(input, input_size, "input.dat");
-	input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
-	writeToFile(input, input_size, "input_clustered.dat");
+	// input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
+	// writeToFile(input, input_size, "input_clustered.dat");
 
 	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 	// </INPUT INIT>
@@ -567,9 +560,7 @@ int main(){
 		chunk_size = (map_side_size*map_side_size)/ compute_units;
 	}else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
-	}
-	cout << "chunk_size: " << chunk_size << endl;
-	//(62*5+ (64-((62*5)%64))) % 64 
+	} 
 
 	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
@@ -729,8 +720,6 @@ int main(){
 			<< "\t- Devices available\t\t\t" << devices.size() << endl
 			<< "\t- Max Compute Units (per device)\t" << compute_units << endl
  			<< "==\t\t\t==" << endl;
-
- 	readMapFromFile("map_0.dat");
 
 	int current;
 	int *winner = (int *)malloc(sizeof(int));

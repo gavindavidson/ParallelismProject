@@ -1,6 +1,6 @@
 #include "drawPPMmap.h"
 
-int map_side_size, map_vector_size, map_size;
+int input_map_side_size, map_vector_size, map_size;
 float max_weight, min_weight;
 
 string height = "4";
@@ -104,7 +104,7 @@ RGB *rgbColourFromFloat(float* a){
 // 	string output = "<table cellspacing=\"0\">\n<tr>";
 // 	int current_index = 0;
 // 	for (vector<string>::iterator colour_iter = hex_colours.begin(); colour_iter != hex_colours.end(); colour_iter++){
-// 		if (current_index%map_side_size == 0){
+// 		if (current_index%input_map_side_size == 0){
 // 			output += "\n</tr>\n<tr>";
 // 		}
 // 		output += string("\t<td style=\"width:") + width + "px;height:" + height + "px;background-color:" + (*colour_iter) + "\">";
@@ -124,7 +124,7 @@ int writeToFile(string contents, string filename){
 
 int drawMap(float *map, int in_map_size, int vector_length, string filename){
 	map_size = in_map_size;
-	map_side_size = sqrt(map_size);
+	input_map_side_size = sqrt(map_size);
 	map_vector_size = vector_length;
 	vector<float> current_vector;
 	float *weight_map = (float *)malloc(sizeof(float) * map_size);
@@ -148,8 +148,8 @@ int drawMap(float *map, int in_map_size, int vector_length, string filename){
 	}
 	RGB *pixels = rgbColourFromFloat(weight_map);
 	PPMImage *image = (PPMImage *)malloc(sizeof(PPMImage));
-	image -> x = (char)map_side_size;
-	image -> y = map_side_size;
+	image -> x = (char)input_map_side_size;
+	image -> y = input_map_side_size;
 	image -> data = pixels;
 
 	char const * c_filename = filename.c_str();
@@ -171,7 +171,7 @@ int drawMap(float *map, int in_map_size, int vector_length, string filename){
 }
 
 int drawMap(vector< vector<float > > map, string filename){
-	// map_side_size = sqrt((int)map.size());
+	// input_map_side_size = sqrt((int)map.size());
 	// map_vector_size = (map.at(0)).size();
 	// min_weight = FLT_MAX;
 	// max_weight = FLT_MIN;
