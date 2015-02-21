@@ -13,12 +13,13 @@ void writeToFile(float *data, int size, int input_vector_length, std::string fil
 	std::cout << "Writing to \"" << filename << "\"..." << std::endl;
 	std::string contents = "";
 	std::ostringstream convert;
-	convert << input_vector_length; 
+	convert << size; 
 	contents += convert.str() + " ";
 
 	convert.str("");
-	convert << size; 
+	convert << input_vector_length; 
 	contents += convert.str();
+	
 	for (int i = 0; i < size*input_vector_length; i++){
 		if (i%input_vector_length == 0){
 			contents += "\n";
