@@ -1,0 +1,14 @@
+TEST PLAN:
+	Run the SOM using different settings on curieuse. Run some of the more interesting cases on togian. Start was a base value and change variables from there.
+
+TESTS:
+	BASE:	32 x 32 map		5120 x 3 vectors
+
+	TEST 1:	32 x 32 map		8192 x 3 vectors
+	TEST 2: 32 x 32 map		2048 x 3 vectors
+
+	TEST 3: 32 x 32 map		5120 x 1 vectors
+	TEST 4: 32 x 32 map		5120 x 8 vectors
+
+	TEST 5: 16 x 16 map		5120 x 3 vectors
+	TEST 6: 48 x 48 map		5120 x 3 vectors

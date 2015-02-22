@@ -108,8 +108,8 @@ float* initialiseGaussianClusteredArray(float gauss_value, int spread, int numbe
 				// Add the 'amount' specified to the output. If this is not the first position
 				// in the list, manipulate the centre value before adding it to the output
 				if (current_index < max_index - 1){
-					output[current_index++] = ((rand()/(float)RAND_MAX) * max_variance) + centre - (gaus_list_position*(centre/spread));
-					output[current_index++] = ((rand()/(float)RAND_MAX) * max_variance) + centre + (gaus_list_position*(centre/spread));
+					output[current_index++] = centre - (gaus_list_position*(centre/spread)) + ((rand()/(float)RAND_MAX) * max_variance);
+					output[current_index++] = centre + (gaus_list_position*(centre/spread)) - ((rand()/(float)RAND_MAX) * max_variance);
 				}
 				else if (current_index == max_index - 1){
 					output[current_index++] = centre;

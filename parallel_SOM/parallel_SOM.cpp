@@ -5,6 +5,8 @@
 #include <sstream>
 #include <ctime>
 #include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
 //#include "../drawHTMLmap/drawHTMLMap.h"
 #include "../ppm/drawPPMmap.h"
 
@@ -29,7 +31,7 @@ THINGS TO CONSIDER:
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
 // #define map_side_size 32
-#define trials 3
+#define trials 1
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
@@ -181,19 +183,9 @@ bool checkArrayConvergence(float *a, float *b, int start_index, int vector_size)
 */
 void calculateGaussList(){
 	float a = 1.0/(gauss_value*sqrt(2*pi));
-	//cout << "New gauss_value_list:\n[";
 	for (int x = 0; x < map_side_size; x++){
 		gauss_value_list[x] = a* exp(-(pow(x/5.0, 2)/(2*pow(gauss_value, 2))));
-		
-		// if (x == 0){
-		// 	gauss_value_list[x] = 1;
-		// }
-		// else {
-		// 	gauss_value_list[x] = 0;
-		// }
-		//cout << gauss_value_list[x] << " ";
 	}
-	//cout << "]\n";
 }
 
 /*
@@ -377,8 +369,12 @@ int main(int argc, char* argv[]){
 	}
 	input = readInputFromFile(input_filename);
 	string map_dir = input_filename + "_map";
-	string mkdir_command = "mkdir " + map_dir;
-	system(mkdir_command.c_str());
+	
+	struct stat info;
+	if( stat( map_dir.c_str(), &info ) != 0 ){
+		string mkdir_command = "mkdir " + map_dir;
+		system(mkdir_command.c_str());
+	}
 
 	if (argc > 2){
 		// argv[2] >> map_side_size;
@@ -394,14 +390,6 @@ int main(int argc, char* argv[]){
 	range = max - min;
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	gauss_value_list = (float *)malloc(sizeof(float)*map_side_size);
-	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
-
-	// input = initialiseRandomArray(input_size, input_vector_length);
-	// writeToFile(input, input_size, "input.dat");
-	// input = initialiseClusteredArray(input_size, input_vector_length, input_data_clusters);
-	// writeToFile(input, input_size, "input_clustered.dat");
-
-	//drawMap(map, map_side_size*map_side_size, input_vector_length, "map_draw/initial_map.html");
 	// </INPUT INIT>
 
 	// <OPENCL>
@@ -546,13 +534,6 @@ int main(int argc, char* argv[]){
 	min_distance_kernel = cl::Kernel(min_distance_prog, "min_distance");
 	checkErr(err, "min_distance_kernel");
 
-	// min_distance_kernel.setArg(0, distance_map_buffer);
-	// checkErr(err, "min_distance_kernel: kernel(0)");
-	// min_distance_kernel.setArg(1, map_side_size*map_side_size);
-	// checkErr(err, "min_distance_kernel: kernel(1)");
-	// min_distance_kernel.setArg(2, winner_index_buffer);
-	// checkErr(err, "min_distance_kernel: kernel(2)");
-
 	min_distance_kernel.setArg(0, distance_map_buffer);
 	checkErr(err, "min_distance_kernel: kernel(0)");
 	min_distance_kernel.setArg(1, winner_index_array_buffer);
@@ -631,7 +612,6 @@ int main(int argc, char* argv[]){
 		err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
 		checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
 		// </OPENCL>
-		writeToFile(gauss_value_list, map_side_size, map_dir + "/learning_rates.dat");
 		time_t start_time = time(0);
 
 		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&start_time));
