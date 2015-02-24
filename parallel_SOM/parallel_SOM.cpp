@@ -368,13 +368,6 @@ int main(int argc, char* argv[]){
 		std::cin >> input_filename;
 	}
 	input = readInputFromFile(input_filename);
-	string map_dir = input_filename + "_map";
-	
-	struct stat info;
-	if( stat( map_dir.c_str(), &info ) != 0 ){
-		string mkdir_command = "mkdir " + map_dir;
-		system(mkdir_command.c_str());
-	}
 
 	if (argc > 2){
 		// argv[2] >> map_side_size;
@@ -383,6 +376,18 @@ int main(int argc, char* argv[]){
 	else {
 		cout << "Enter map dimension (x and y dimenions will be equal): \t";
 		std::cin >> map_side_size;
+	}
+
+	std::ostringstream map_side_size_convert;
+	map_side_size_convert << map_side_size; 
+	// contents += convert.str() + "\t";
+
+	string map_dir = input_filename + "_" + map_side_size_convert.str() + "_map";
+	
+	struct stat info;
+	if( stat( map_dir.c_str(), &info ) != 0 ){
+		string mkdir_command = "mkdir " + map_dir;
+		system(mkdir_command.c_str());
 	}
 
 	min = 0;
