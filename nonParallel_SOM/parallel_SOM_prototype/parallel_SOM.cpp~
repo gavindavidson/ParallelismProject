@@ -8,6 +8,16 @@
 //#include "../drawHTMLmap/drawHTMLMap.h"
 #include "../ppm/drawPPMmap.h"
 
+/*	
+== == == == == == == ==
+DATE:		15/01/15
+
+This is a version of the parallel SOM program that represents the algorithm before being adapted for openCL.
+== == == == == == == ==
+*/
+
+
+
 /*
 THINGS TO CONSIDER:
 	-	Initial neighbourhood size
