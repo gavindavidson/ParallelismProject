@@ -573,8 +573,6 @@ int main(int argc, char* argv[]){
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
-			// << "\t- Map convergence tollerance\t\t" << map_convergence_tollerance << endl
-			// << "\t- Vector convergence tollerance\t\t" << vector_convergence_tollerance << endl
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "\t- Trials\t\t\t\t" << trials << endl
@@ -596,7 +594,7 @@ int main(int argc, char* argv[]){
 		min_distance_time = 0;
 		min_distance_read_time = 0;
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
-
+		// printArray(map, map_side_size*map_side_size * input_vector_length, 3);
 		// <OPENCL>
 		map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 			sizeof(float)*map_side_size*map_side_size*input_vector_length, map, &err);

@@ -1,12 +1,12 @@
 all: parallel_SOM
 
 parallel_SOM: parallel_SOM.o drawPPMmap.o PPM.o
-	g++ -o parallel_SOM parallel_SOM.o drawPPMmap.o PPM.o -lrt  /opt/AMDAPP/lib/x86_64/libOpenCL.so
+	g++ -o parallel_SOM parallel_SOM.o drawPPMmap.o PPM.o -lrt  -lOpenCL
 	#-lOpenCL
 	#/opt/AMDAPP/lib/x86_64/libOpenCL.so
 
 parallel_SOM.o: parallel_SOM.cpp
-	g++ -c -Wno-deprecated-declarations parallel_SOM.cpp -I/opt/AMDAPP/include
+	g++ -c -Wno-deprecated-declarations parallel_SOM.cpp
 	#-I/opt/AMDAPP/include
 
 drawHTMLMap.o: ../drawHTMLmap/drawHTMLMap.cpp
