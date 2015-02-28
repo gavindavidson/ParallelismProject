@@ -7,6 +7,7 @@
 #include <string>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <chrono>
 //#include "../drawHTMLmap/drawHTMLMap.h"
 #include "../ppm/drawPPMmap.h"
 
@@ -60,7 +61,8 @@ int *winner_index_array;
 float best_quantisation_error;
 
 // std::clock_t local_start_time;
-long int local_start_time;
+std::chrono::high_resolution_clock::time_point start, end;
+std::chrono::duration<double> time_span;
 long int time_difference;
 struct timespec gettime_now;
 float update_weight_time, manhattan_distance_time, min_distance_time, min_distance_read_time;
@@ -232,19 +234,17 @@ void update_weights(int input_start_index, int vector_size){
 	update_weight_kernel.setArg(4, input_start_index);
 	checkErr(err, "update_weight_kernel: kernel(4)");
 
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	local_start_time = gettime_now.tv_nsec;	
+	start = std::chrono::high_resolution_clock::now();
+
 	cl::Event end_event;
 	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange	, NULL, &end_event);
 	checkErr(err, "update_weight_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	time_difference = gettime_now.tv_nsec - local_start_time;
-	if (time_difference < 0){
-		time_difference += 1000000000;	
-	}
-	update_weight_time += time_difference/1000000000.0;
+
+	end = std::chrono::high_resolution_clock::now();
+	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+	update_weight_time += time_span.count();
 }
 
 void findWinner(int input_index){
@@ -255,36 +255,28 @@ void findWinner(int input_index){
 	manhattan_distance_kernel.setArg(4, input_index);
 	checkErr(err, "manhattan_distance_kernel: kernel(4)");
 
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	local_start_time = gettime_now.tv_nsec;	
+	start = std::chrono::high_resolution_clock::now();
 
 	cl::Event end_event;
 	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
 	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	time_difference = gettime_now.tv_nsec - local_start_time;
-	if (time_difference < 0){
-		time_difference += 1000000000;	
-	}
-	manhattan_distance_time += time_difference/1000000000.0;
+	end = std::chrono::high_resolution_clock::now();
+	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+	manhattan_distance_time += time_span.count();
 
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	local_start_time = gettime_now.tv_nsec;	
+	start = std::chrono::high_resolution_clock::now();
+	
 	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	time_difference = gettime_now.tv_nsec - local_start_time;
-	if (time_difference < 0){
-		time_difference += 1000000000;	
-	}
-	min_distance_time += time_difference/1000000000.0;
+	end = std::chrono::high_resolution_clock::now();
+	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+	min_distance_time += time_span.count();
 
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	local_start_time = gettime_now.tv_nsec;	
+	start = std::chrono::high_resolution_clock::now();
 
 	err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
 		sizeof(float)*compute_units, winner_distance_array);
@@ -304,13 +296,9 @@ void findWinner(int input_index){
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
-	clock_gettime(CLOCK_REALTIME, &gettime_now);
-	time_difference = gettime_now.tv_nsec - local_start_time;
-	if (time_difference < 0){
-		time_difference += 1000000000;	
-	}
-
-	min_distance_read_time += time_difference/1000000000.0;
+	end = std::chrono::high_resolution_clock::now();
+	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
+	min_distance_read_time += time_span.count();
 }
 
 
