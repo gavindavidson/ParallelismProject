@@ -182,7 +182,6 @@ int main(int argc, char* argv[]){
 		std::cin >> clusters;
 		std::cout << "Spread:\t\t\t";
 		std::cin >> spread;
-		// initialiseGaussianClusteredArray(float gauss_value, int spread, int number_of_vectors, int vector_length, int clusters){
 		float *data = initialiseGaussianClusteredArray(7.0/10, spread, num_vectors, vector_length, clusters);
 		writeToFile(data, num_vectors, vector_length, filename);
 	}

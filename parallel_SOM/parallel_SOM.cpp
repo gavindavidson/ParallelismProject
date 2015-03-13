@@ -32,7 +32,7 @@ THINGS TO CONSIDER:
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
 // #define map_side_size 32
-#define trials 1
+// #define trials 1
 #define map_convergence_tollerance 0.00
 #define vector_convergence_tollerance 0.000001
 
@@ -50,6 +50,7 @@ float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be 
 int input_vector_length = 0;
 int input_size = 0;
 int map_side_size = 0;
+int trials;
 
 // float gauss_value = sqrt(map_side_size)/10;
 float gauss_value = 7.0/10;
@@ -346,7 +347,7 @@ int main(int argc, char* argv[]){
 	// <INPUT INIT>
 	string input_filename;
 	if (argc < 3){
-		cout << "Standard usage: ./parallel_SOM <input file name> <map side size>" << endl;
+		cout << "Standard usage: ./parallel_SOM <input file name> <map side size> <trials>" << endl;
 	}
 	if (argc > 1){
 		input_filename = argv[1];
@@ -364,6 +365,16 @@ int main(int argc, char* argv[]){
 	else {
 		cout << "Enter map dimension (x and y dimenions will be equal): \t";
 		std::cin >> map_side_size;
+	}
+
+	if (argc > 3){
+		// argv[2] >> map_side_size;
+		// map_side_size = atoi(argv[2]);
+		trials = atoi(argv[3]);
+	}
+	else {
+		cout << "Enter number of trials: \t";
+		std::cin >> trials;
 	}
 
 	std::ostringstream map_side_size_convert;
