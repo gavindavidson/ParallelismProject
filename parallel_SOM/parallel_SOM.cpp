@@ -73,7 +73,7 @@ int compute_units;
 cl_int err;
 cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_array_buffer, winner_distance_array_buffer;
 //cl::Buffer subject_vector_buffer;
-cl::Context CPU_context;
+cl::Context device_context;
 
 // cl::Program manhattan_distance_prog;
 cl::Kernel manhattan_distance_kernel, update_weight_kernel, min_distance_kernel;
@@ -268,8 +268,10 @@ void findWinner(int input_index){
 	manhattan_distance_time += time_span.count();
 
 	start = std::chrono::high_resolution_clock::now();
-	
-	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NullRange, NULL, &end_event);
+
+	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
+	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(work_group_size*compute_units), cl::NDRange(work_group_size), NULL, &end_event);
+	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
@@ -289,11 +291,13 @@ void findWinner(int input_index){
 	float current_min_value = FLT_MAX;
 	int current_min_index = 0;
 	for (int i = 0; i < compute_units; i++){
+		// cout << winner_index_array[i] << "\t";
 		if (winner_distance_array[i] < current_min_value){
 			current_min_index = winner_index_array[i];
 			current_min_value = winner_distance_array[i];
 		}
 	}
+	// cout << "WINNER: " << current_min_index << endl;
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
@@ -389,9 +393,9 @@ int main(int argc, char* argv[]){
 		system(mkdir_command.c_str());
 	}
 
-	min = 0;
-	max = 10000;
-	range = max - min;
+	// min = 0;
+	// max = 10000;
+	// range = max - min;
 	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	gauss_value_list = (float *)malloc(sizeof(float)*map_side_size);
 	// </INPUT INIT>
@@ -410,20 +414,22 @@ int main(int argc, char* argv[]){
 	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
-	CPU_context = cl::Context(
-		CL_DEVICE_TYPE_CPU,
+	device_context = cl::Context(
+		CL_DEVICE_TYPE_GPU,
 		context_props,
 		NULL,
 		NULL,
 		&err);
-	checkErr(err, "CPU_context()");
+	checkErr(err, "device_context()");
 
 	vector<cl::Device> devices;
-	devices = CPU_context.getInfo<CL_CONTEXT_DEVICES>();
+	devices = device_context.getInfo<CL_CONTEXT_DEVICES>();
 	checkErr(devices.size() > 0 ? CL_SUCCESS : -1, "devices.size() > 0");
 
+	int max_work_size;
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
 
+	cout << max_work_size << endl;
 	//int chunk_size = map_side_size*map_side_size + (compute_units - (map_side_size*map_side_size)%compute_units) / compute_units;
 	int chunk_size;
 	if ((map_side_size*map_side_size)% compute_units == 0){
@@ -440,37 +446,52 @@ int main(int argc, char* argv[]){
 	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
 	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
 	for (int i = 0; i < compute_units; i++){
-		winner_distance_array[i] = 0;
-		winner_index_array[i] = 0;
+		winner_distance_array[i] = FLT_MAX;
+		winner_index_array[i] = 1154;
 	}
 
-	// distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	// distance_map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 	// 	sizeof(float)*(map_side_size*map_side_size), distance_map, &err);
-	distance_map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	distance_map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*(chunk_size*compute_units), distance_map, &err);
 	checkErr(err, "distance_map_buffer");
-	input_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+	input_buffer = cl::Buffer(device_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*input_size*input_vector_length, input, &err);
 	checkErr(err, "input_buffer");
-	gauss_value_list_buffer = cl::Buffer(CPU_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
+	gauss_value_list_buffer = cl::Buffer(device_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*map_side_size, gauss_value_list, &err);
 	checkErr(err, "gauss_value_list_buffer");
 	
 	int *winner_array = (int *)malloc(sizeof(int));
 	winner_array[0] = 0;
-	winner_index_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, 
+	winner_index_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, 
 		sizeof(int), winner_array, &err);
 	checkErr(err, "winner_index_buffer");
 
-	winner_index_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(int)*compute_units, winner_index_array, &err);
 	checkErr(err, "winner_index_array_buffer");
-	winner_distance_array_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*compute_units, winner_distance_array, &err);
 	checkErr(err, "winner_distance_array_buffer");
+	// winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE,
+	// 	sizeof(int)*compute_units, NULL, &err);
+	// checkErr(err, "winner_index_array_buffer");
+	// winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE,
+	// 	sizeof(float)*compute_units, NULL, &err);
+	// checkErr(err, "winner_distance_array_buffer");
+
+	cl::LocalSpaceArg local_winner_index_array_size = cl::Local(chunk_size * sizeof(int));
+	cl::LocalSpaceArg local_winner_distance_array_size = cl::Local(chunk_size * sizeof(float));
+	// cl::Buffer local_winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	// 	sizeof(int)*work_group_size, winner_index_array, &err);
+	// checkErr(err, "winner_index_array_buffer");
+	// cl::Buffer local_winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+	// 	sizeof(float)*work_group_size, winner_distance_array, &err);
+	// checkErr(err, "winner_distance_array_buffer");
 
 
-	command_queue = cl::CommandQueue(CPU_context, devices[0],0,&err);
+	command_queue = cl::CommandQueue(device_context, devices[0],0,&err);
 	checkErr(err, "command_queue()");
 
 	// <MANHATTAN_DISTANCE STUFF>
@@ -479,7 +500,7 @@ int main(int argc, char* argv[]){
 	string manhattan_distance_code(std::istreambuf_iterator<char>(manhattan_file), (std::istreambuf_iterator<char>()));
 
 	cl::Program::Sources manhattan_distance_source(1, std::make_pair(manhattan_distance_code.c_str(), manhattan_distance_code.length()+1));
-	cl::Program manhattan_distance_prog(CPU_context, manhattan_distance_source);
+	cl::Program manhattan_distance_prog(device_context, manhattan_distance_source);
 	err = manhattan_distance_prog.build(devices, "");
 	checkErr(err, "Program::build(): manhattan_distance_prog");
 
@@ -501,7 +522,7 @@ int main(int argc, char* argv[]){
 	string update_weight_code(std::istreambuf_iterator<char>(update_weight_file), (std::istreambuf_iterator<char>()));
 
 	cl::Program::Sources update_weight_source(1, std::make_pair(update_weight_code.c_str(), update_weight_code.length()+1));
-	cl::Program update_weight_prog(CPU_context, update_weight_source);
+	cl::Program update_weight_prog(device_context, update_weight_source);
 	err = update_weight_prog.build(devices, "");
 	checkErr(err, "Program::build(): update_weight_prog");
 
@@ -531,7 +552,7 @@ int main(int argc, char* argv[]){
 	string min_distance_code(std::istreambuf_iterator<char>(min_distance_file), (std::istreambuf_iterator<char>()));
 
 	cl::Program::Sources min_distance_source(1, std::make_pair(min_distance_code.c_str(), min_distance_code.length()+1));
-	cl::Program min_distance_prog(CPU_context, min_distance_source);
+	cl::Program min_distance_prog(device_context, min_distance_source);
 	err = min_distance_prog.build(devices, "");
 	checkErr(err, "Program::build(): min_distance_prog");
 
@@ -546,7 +567,10 @@ int main(int argc, char* argv[]){
 	checkErr(err, "min_distance_kernel: kernel(2)");
 	min_distance_kernel.setArg(3, chunk_size);
 	checkErr(err, "min_distance_kernel: kernel(3)");
-	
+	min_distance_kernel.setArg(4, local_winner_index_array_size);
+	checkErr(err, "min_distance_kernel: kernel(4)");
+	min_distance_kernel.setArg(5, local_winner_distance_array_size);
+	checkErr(err, "min_distance_kernel: kernel(4)");	
 	// </MIN_DISTANCE STUFF>
 
 	// </OPENCL>
@@ -595,7 +619,7 @@ int main(int argc, char* argv[]){
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
 		// printArray(map, map_side_size*map_side_size * input_vector_length, 3);
 		// <OPENCL>
-		map_buffer = cl::Buffer(CPU_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
+		map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 			sizeof(float)*map_side_size*map_side_size*input_vector_length, map, &err);
 		checkErr(err, "map_buffer");
 		
@@ -614,6 +638,7 @@ int main(int argc, char* argv[]){
 		err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
 		checkErr(err, "enqueueWriteBuffer(): gauss_value_list_buffer");
 		// </OPENCL>
+		std::chrono::high_resolution_clock::time_point global_start_time = std::chrono::high_resolution_clock::now();
 		time_t start_time = time(0);
 
 		cout << "TRIAL " << current_trial << ": started at " << asctime(localtime(&start_time));
@@ -637,7 +662,10 @@ int main(int argc, char* argv[]){
 
 		}
 		drawProgessBar(cycle_length*map_side_size, cycle_length*map_side_size);
-		int seconds = difftime(time(0), start_time);
+		std::chrono::high_resolution_clock::time_point global_end_time = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> runtime = std::chrono::duration_cast<std::chrono::duration<double>>(global_end_time - global_start_time);
+
+		float seconds = runtime.count();
 		cout << endl << "Finished after: " << seconds << " seconds" << endl;
 
 		cout << "KERNEL EXECUTION:" << endl;
