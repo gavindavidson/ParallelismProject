@@ -8,60 +8,37 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <chrono>
-//#include "../drawHTMLmap/drawHTMLMap.h"
 #include "../ppm/drawPPMmap.h"
 
 
-// PRE OPENCL TESTING
-// #include "manhattan_distance.h"
-// #include "update_weight.h"
-// =================
 #include "cl.hpp"
 #include "util.hpp"
 
-/*
-THINGS TO CONSIDER:
-	-	Initial neighbourhood size
-	-	When to reduce neighbourhood size
-	-	Learning rate
-	-	Map size
-	-	Convergence tollerance
-*/
+
 
 // Initial neighbourhood size to be all points in map
 #define cycle_length 20
 // Learning rate to be defined by a Gaussian function
-// #define map_side_size 32
-// #define trials 1
-#define map_convergence_tollerance 0.00
-#define vector_convergence_tollerance 0.000001
-
-// #define input_size 5120
-// #define input_vector_length 3
-#define input_data_clusters 5
 
 using std::cout;
 using std::endl;
 using std::string;
 
 float max, min, range;
-float min_neighbourhood_effect = pow(10, -10);	// Minimum quotient that must be applied to a change in a point in a neighbourhood
 
 int input_vector_length = 0;
 int input_size = 0;
 int map_side_size = 0;
 int trials;
 
-// float gauss_value = sqrt(map_side_size)/10;
-float gauss_value = 7.0/10;
+float gauss_value = 0.7;
 float *gauss_value_list;
 const double pi = 3.14159265359;
 
-float *map, *input, *previous_map, *distance_map, *best_map, *winner_distance_array;
+float *map, *input, *distance_map, *best_map, *winner_distance_array;
 int *winner_index_array;
 float best_quantisation_error;
 
-// std::clock_t local_start_time;
 std::chrono::high_resolution_clock::time_point start, end;
 std::chrono::duration<double> time_span;
 long int time_difference;
@@ -71,11 +48,10 @@ float update_weight_time, manhattan_distance_time, min_distance_time, min_distan
 // OPENCL
 int compute_units;
 cl_int err;
-cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, winner_index_buffer, output_buffer, winner_index_array_buffer, winner_distance_array_buffer;
-//cl::Buffer subject_vector_buffer;
+cl::Buffer map_buffer, distance_map_buffer, input_buffer, gauss_value_list_buffer, output_buffer, winner_index_array_buffer, winner_distance_array_buffer;
+
 cl::Context device_context;
 
-// cl::Program manhattan_distance_prog;
 cl::Kernel manhattan_distance_kernel, update_weight_kernel, min_distance_kernel;
 cl::CommandQueue command_queue;
 
@@ -162,23 +138,11 @@ int writeToFile(float *data, int size, string filename){
 float * initialiseRandomArray(int array_size, int vector_length){
 	srand(time(NULL));				// Seed rand() with current time
 	std::cout << "<Producing random array>" << std::endl;
-	//float output[map_size * vector_length];
 	float *output = (float *)malloc(array_size*vector_length*sizeof(float));
 	for (int i = 0; i < (array_size * vector_length); i++){
 		output[i] = (rand()/(float)RAND_MAX) * range + min;
 	}
 	return output;
-}
-
-bool checkArrayConvergence(float *a, float *b, int start_index, int vector_size){
-	float delta;
-	for (int i = start_index; i < vector_size+start_index; i++){
-		delta = a[i] * vector_convergence_tollerance;
-		if (a[i] - delta >= b[i] || a[i] + delta <= b[i]){
-			return false;
-		}
-	}
-	return true;
 }
 
 /*
@@ -232,15 +196,18 @@ void update_weights(int input_start_index, int vector_size){
 	int current_pos, neighbourhood_value;
 	int map_size = map_side_size*map_side_size*vector_size;
 
+	// Set the start index for the current vector for the update_weight kernel.
 	update_weight_kernel.setArg(4, input_start_index);
 	checkErr(err, "update_weight_kernel: kernel(4)");
 
 	start = std::chrono::high_resolution_clock::now();
 
 	cl::Event end_event;
+	// Enqueue the kernel with as many work units are there are neurons in the map
 	err = command_queue.enqueueNDRangeKernel(update_weight_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange	, NULL, &end_event);
 	checkErr(err, "update_weight_kernel: enqueueNDRangeKernel()");
 
+	// Wait for completion
 	end_event.wait();
 
 	end = std::chrono::high_resolution_clock::now();
@@ -250,18 +217,20 @@ void update_weights(int input_start_index, int vector_size){
 
 void findWinner(int input_index){
 	int winner = 0;
-	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	float winnerDistance = FLT_MAX;
 	
+	// Assign the index representing the start of the current input vector to the distance kernel
 	manhattan_distance_kernel.setArg(4, input_index);
 	checkErr(err, "manhattan_distance_kernel: kernel(4)");
 
 	start = std::chrono::high_resolution_clock::now();
 
+	// Enqueue kernel with as many work items as there are neurons in the map
 	cl::Event end_event;
 	err = command_queue.enqueueNDRangeKernel(manhattan_distance_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
 	checkErr(err, "manhattan_distance_kernel: enqueueNDRangeKernel()");
 
+	// Wait for completion
 	end_event.wait();
 	end = std::chrono::high_resolution_clock::now();
 	time_span = std::chrono::duration_cast<std::chrono::duration<double>>(end - start);
@@ -269,9 +238,8 @@ void findWinner(int input_index){
 
 	start = std::chrono::high_resolution_clock::now();
 
+	// Enqueue min_distance kernel so that each work item deals with more than one neuron
 	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
-	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(work_group_size*compute_units), cl::NDRange(work_group_size), NULL, &end_event);
-	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(map_side_size*map_side_size), cl::NullRange, NULL, &end_event);
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
@@ -281,6 +249,7 @@ void findWinner(int input_index){
 
 	start = std::chrono::high_resolution_clock::now();
 
+	// Read the results from the min_distance 
 	err = command_queue.enqueueReadBuffer(winner_distance_array_buffer, CL_TRUE, 0,
 		sizeof(float)*compute_units, winner_distance_array);
 	checkErr(err, "winner_distance_array_buffer: enqueueReadBuffer()");
@@ -290,14 +259,14 @@ void findWinner(int input_index){
 
 	float current_min_value = FLT_MAX;
 	int current_min_index = 0;
+	// Iterate through the results to find the minimum distance
 	for (int i = 0; i < compute_units; i++){
-		// cout << winner_index_array[i] << "\t";
 		if (winner_distance_array[i] < current_min_value){
 			current_min_index = winner_index_array[i];
 			current_min_value = winner_distance_array[i];
 		}
 	}
-	// cout << "WINNER: " << current_min_index << endl;
+	// Assign the minimum distance to the update_weight kernel
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
@@ -307,7 +276,6 @@ void findWinner(int input_index){
 }
 
 
-// float euclidean_distance(float *a, float *b, int a_start_index, int b_start_index, int vector_size){
 float quantisationError(int input_index){
 	int winner = 0;
 	findWinner(input_index);
@@ -322,7 +290,6 @@ float quantisationError(int input_index){
 			winnerDistance = distance_map[distance_index];
 			winner = distance_index;
 		}
-		//cout << distance_map[distance_index] << "\t";
 	}
 
 	float local_average_error = 0;
@@ -363,7 +330,6 @@ int main(int argc, char* argv[]){
 	input = readInputFromFile(input_filename);
 
 	if (argc > 2){
-		// argv[2] >> map_side_size;
 		map_side_size = atoi(argv[2]);
 	}
 	else {
@@ -372,8 +338,6 @@ int main(int argc, char* argv[]){
 	}
 
 	if (argc > 3){
-		// argv[2] >> map_side_size;
-		// map_side_size = atoi(argv[2]);
 		trials = atoi(argv[3]);
 	}
 	else {
@@ -383,7 +347,6 @@ int main(int argc, char* argv[]){
 
 	std::ostringstream map_side_size_convert;
 	map_side_size_convert << map_side_size; 
-	// contents += convert.str() + "\t";
 
 	string map_dir = input_filename + "_" + map_side_size_convert.str() + "_map";
 	
@@ -393,14 +356,11 @@ int main(int argc, char* argv[]){
 		system(mkdir_command.c_str());
 	}
 
-	// min = 0;
-	// max = 10000;
-	// range = max - min;
-	previous_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size*input_vector_length);
 	gauss_value_list = (float *)malloc(sizeof(float)*map_side_size);
 	// </INPUT INIT>
 
 	// <OPENCL>
+	// Initialising device
 	vector<cl::Platform> platforms;
 	string platform_name;
 	cl::Platform::get(&platforms);
@@ -414,31 +374,52 @@ int main(int argc, char* argv[]){
 	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
 
 	cl_context_properties context_props[3] = {CL_CONTEXT_PLATFORM, (cl_context_properties)(platforms[0])(), 0};
+	
+	// Try CPU context
 	device_context = cl::Context(
-		CL_DEVICE_TYPE_GPU,
+		CL_DEVICE_TYPE_CPU,
 		context_props,
 		NULL,
 		NULL,
 		&err);
+
+	if (err == CL_SUCCESS){
+		cout << "Initialised for CPU" << endl;
+	}
+	else {
+		// Try GPU context
+		device_context = cl::Context(
+			CL_DEVICE_TYPE_GPU,
+			context_props,
+			NULL,
+			NULL,
+			&err);
+	
+		if (err == CL_SUCCESS){
+			cout << "Initialised for GPU" << endl;
+		}
+	}
 	checkErr(err, "device_context()");
 
 	vector<cl::Device> devices;
 	devices = device_context.getInfo<CL_CONTEXT_DEVICES>();
 	checkErr(devices.size() > 0 ? CL_SUCCESS : -1, "devices.size() > 0");
 
-	int max_work_size;
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
+	char* device_name;
+	devices[0].getInfo(CL_DEVICE_NAME, &device_name);
 
-	cout << max_work_size << endl;
-	//int chunk_size = map_side_size*map_side_size + (compute_units - (map_side_size*map_side_size)%compute_units) / compute_units;
+	// Device initialised
+	// Determine 'chunk_size'. This value determines how the neurons in the map are divided across the device
 	int chunk_size;
 	if ((map_side_size*map_side_size)% compute_units == 0){
 		chunk_size = (map_side_size*map_side_size)/ compute_units;
-	}else {
+	} else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
 	} 
 
-	// distance_map = (float *)malloc(sizeof(float)*map_side_size*map_side_size);
+
+	// Build buffers
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
 	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
 		distance_map[i] = -1;
@@ -447,11 +428,9 @@ int main(int argc, char* argv[]){
 	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
 	for (int i = 0; i < compute_units; i++){
 		winner_distance_array[i] = FLT_MAX;
-		winner_index_array[i] = 1154;
+		winner_index_array[i] = -1;
 	}
 
-	// distance_map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
-	// 	sizeof(float)*(map_side_size*map_side_size), distance_map, &err);
 	distance_map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*(chunk_size*compute_units), distance_map, &err);
 	checkErr(err, "distance_map_buffer");
@@ -461,12 +440,6 @@ int main(int argc, char* argv[]){
 	gauss_value_list_buffer = cl::Buffer(device_context, CL_MEM_READ_ONLY | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*map_side_size, gauss_value_list, &err);
 	checkErr(err, "gauss_value_list_buffer");
-	
-	int *winner_array = (int *)malloc(sizeof(int));
-	winner_array[0] = 0;
-	winner_index_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR, 
-		sizeof(int), winner_array, &err);
-	checkErr(err, "winner_index_buffer");
 
 	winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(int)*compute_units, winner_index_array, &err);
@@ -474,42 +447,34 @@ int main(int argc, char* argv[]){
 	winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 		sizeof(float)*compute_units, winner_distance_array, &err);
 	checkErr(err, "winner_distance_array_buffer");
-	// winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE,
-	// 	sizeof(int)*compute_units, NULL, &err);
-	// checkErr(err, "winner_index_array_buffer");
-	// winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE,
-	// 	sizeof(float)*compute_units, NULL, &err);
-	// checkErr(err, "winner_distance_array_buffer");
 
+	// Assign local memory for min_distance.cl
 	cl::LocalSpaceArg local_winner_index_array_size = cl::Local(chunk_size * sizeof(int));
 	cl::LocalSpaceArg local_winner_distance_array_size = cl::Local(chunk_size * sizeof(float));
-	// cl::Buffer local_winner_index_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
-	// 	sizeof(int)*work_group_size, winner_index_array, &err);
-	// checkErr(err, "winner_index_array_buffer");
-	// cl::Buffer local_winner_distance_array_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
-	// 	sizeof(float)*work_group_size, winner_distance_array, &err);
-	// checkErr(err, "winner_distance_array_buffer");
 
-
+	// Create command queue
 	command_queue = cl::CommandQueue(device_context, devices[0],0,&err);
 	checkErr(err, "command_queue()");
 
 	// <MANHATTAN_DISTANCE STUFF>
+	// Load source file
 	std::ifstream manhattan_file("manhattan_distance.cl");
 	checkErr(manhattan_file.is_open() ? CL_SUCCESS:-1, "manhattan_distance.cl");
 	string manhattan_distance_code(std::istreambuf_iterator<char>(manhattan_file), (std::istreambuf_iterator<char>()));
 
+	// Build source for device
 	cl::Program::Sources manhattan_distance_source(1, std::make_pair(manhattan_distance_code.c_str(), manhattan_distance_code.length()+1));
 	cl::Program manhattan_distance_prog(device_context, manhattan_distance_source);
 	err = manhattan_distance_prog.build(devices, "");
 	checkErr(err, "Program::build(): manhattan_distance_prog");
 
+	// Build kernel object
 	manhattan_distance_kernel = cl::Kernel(manhattan_distance_prog, "manhattan_distance");
 	checkErr(err, "manhattan_distance_kernel");	
+
+	// Assign arguments
 	manhattan_distance_kernel.setArg(0, input_buffer);
 	checkErr(err, "manhattan_distance_kernel: kernel(0)");
-	// manhattan_distance_kernel.setArg(1, map_buffer);
-	// checkErr(err, "kernel(1)");
 	manhattan_distance_kernel.setArg(2, distance_map_buffer);
 	checkErr(err, "manhattan_distance_kernel: kernel(2)");
 	manhattan_distance_kernel.setArg(3, input_vector_length);
@@ -517,25 +482,27 @@ int main(int argc, char* argv[]){
 	// </MANHATTAN_DISTANCE STUFF>
 
 	// <UPDATE_WEIGHT STUFF>
+	// Load source file
 	std::ifstream update_weight_file("update_weight.cl");
 	checkErr(update_weight_file.is_open() ? CL_SUCCESS:-1, "update_weight.cl");
 	string update_weight_code(std::istreambuf_iterator<char>(update_weight_file), (std::istreambuf_iterator<char>()));
 
+	// Build source for device
 	cl::Program::Sources update_weight_source(1, std::make_pair(update_weight_code.c_str(), update_weight_code.length()+1));
 	cl::Program update_weight_prog(device_context, update_weight_source);
 	err = update_weight_prog.build(devices, "");
 	checkErr(err, "Program::build(): update_weight_prog");
 
+	// Build kernel object
 	update_weight_kernel = cl::Kernel(update_weight_prog, "update_weight");
 	checkErr(err, "update_weight_kernel");
 
+	// Assign arguments
 	// KERNEL ARG 0 (map) ADDED LATER
 	update_weight_kernel.setArg(1, input_buffer);
 	checkErr(err, "update_weight_kernel: kernel(1)");
 	update_weight_kernel.setArg(2, gauss_value_list_buffer);
 	checkErr(err, "update_weight_kernel: kernel(2)");
-	// update_weight_kernel.setArg(3, winner_index_buffer);
-	// checkErr(err, "update_weight_kernel: kernel(3)");
 	// KERNEL ARG 4 (input_start_index) ADDED LATER
 	update_weight_kernel.setArg(5, input_vector_length);
 	checkErr(err, "update_weight_kernel: kernel(5)");
@@ -547,18 +514,22 @@ int main(int argc, char* argv[]){
 	// </UPDATE_WEIGHT STUFF>
 
 	// <MIN_DISTANCE STUFF>
+	// Load source file
 	std::ifstream min_distance_file("min_distance.cl");
 	checkErr(min_distance_file.is_open() ? CL_SUCCESS:-1, "min_distance.cl");
 	string min_distance_code(std::istreambuf_iterator<char>(min_distance_file), (std::istreambuf_iterator<char>()));
 
+	// Build source for device 
 	cl::Program::Sources min_distance_source(1, std::make_pair(min_distance_code.c_str(), min_distance_code.length()+1));
 	cl::Program min_distance_prog(device_context, min_distance_source);
 	err = min_distance_prog.build(devices, "");
 	checkErr(err, "Program::build(): min_distance_prog");
 
+	// Build kernel object
 	min_distance_kernel = cl::Kernel(min_distance_prog, "min_distance");
 	checkErr(err, "min_distance_kernel");
 
+	// Assign arguments
 	min_distance_kernel.setArg(0, distance_map_buffer);
 	checkErr(err, "min_distance_kernel: kernel(0)");
 	min_distance_kernel.setArg(1, winner_index_array_buffer);
@@ -575,64 +546,45 @@ int main(int argc, char* argv[]){
 
 	// </OPENCL>
 
-	cout << "== Stuff to do..\t ==" << endl
-			<< "\t- Make vectors into static arrays\t\t<DONE>" << endl
-			<< "\t\t+ Arrays must be one dimensional" << endl
-			<< "\t\t+ Fix iteration" << endl
-			<< "\t- Add manhattan_distance() \t\t\t<DONE>" << endl
-			<< "\t- Separate loops\t\t\t\t<DONE>" << endl
-			<< "\t- Set up optimal map finding\t\t\t<DONE>" << endl
-			<< "\t\t+ Set up quantisation error checker" << endl
-			<< "\t\t+ Set up repeated map building routine" << endl
-			<< "\t- Tune gaussian curve\t\t\t\t<DONE>" << endl
-			<< "\t- Set up openCL version\t\t\t\t<DONE>" << endl
-			<< "\t\t+ Put functions into C code" << endl
-			<< "\t\t+ Put functions into separate files" << endl
-			<< "\t\t+ Add openCL stuff" << endl
-			<< "\t- Gaussian clusters\t\t\t\t<DONE>" << endl
-			<< "\t- Explore neighbourhood functions\t\t" << endl
-			<< "\t- Explore distance metrics\t\t\t" << endl
-			<< "==\t\t\t==\n" << endl;
 	cout << "== Parallel SOM \t==" << endl
 			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
 			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
 			<< "\t- Input size\t\t\t\t" << input_size << endl
 			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
 			<< "\t- Trials\t\t\t\t" << trials << endl
-			<< "(\t- gauss_value\t\t\t\t" << gauss_value << ")" << endl
-			<< "\n\t- Platforms available\t\t\t" << platforms.size() << endl
-			<< "\t- Running on\t\t\t\t" << platform_name << endl
-			<< "\t- Devices available\t\t\t" << devices.size() << endl
+			<< "\n\t- Running on\t\t\t\t" << device_name << endl
 			<< "\t- Max Compute Units (per device)\t" << compute_units << endl
  			<< "==\t\t\t==" << endl;
 
 	int current;
 	int *winner = (int *)malloc(sizeof(int));
 	int iteration;
-	int total_map_values = map_side_size*map_side_size*input_vector_length;
 	int total_input_values = input_size*input_vector_length;
 	for (int current_trial = 0; current_trial < trials; current_trial++){
+		// Set breakdown time counters to zero
 		update_weight_time = 0;
 		manhattan_distance_time = 0; 
 		min_distance_time = 0;
 		min_distance_read_time = 0;
+
+		// Create random initial map
 		map = initialiseRandomArray(map_side_size*map_side_size, input_vector_length);
-		// printArray(map, map_side_size*map_side_size * input_vector_length, 3);
+
 		// <OPENCL>
+		// Create map buffer and load random initial map into it
 		map_buffer = cl::Buffer(device_context, CL_MEM_READ_WRITE | CL_MEM_USE_HOST_PTR,
 			sizeof(float)*map_side_size*map_side_size*input_vector_length, map, &err);
 		checkErr(err, "map_buffer");
 		
+		// Assign map buffer appropriately
 		manhattan_distance_kernel.setArg(1, map_buffer);
 		checkErr(err, "manhattan_distance_kernel: kernel(1)");
-
 		update_weight_kernel.setArg(0, map_buffer);
 		checkErr(err, "update_weight_kernel: kernel(0)");
 		// </OPENCL>
 		drawMap(map, map_side_size*map_side_size, input_vector_length, map_dir + "/initial_map.ppm");
-		for (int i = 0; i < map_side_size*map_side_size*input_vector_length; i++){
-			previous_map[i] = map[i];
-		}
+
+		// Neighbourhood function array calculated here
 		calculateGaussList();
 		// <OPENCL>
 		err = command_queue.enqueueWriteBuffer(gauss_value_list_buffer, CL_TRUE, 0, map_side_size, gauss_value_list);
@@ -646,10 +598,12 @@ int main(int argc, char* argv[]){
 			drawProgessBar(iteration, cycle_length*map_side_size);
 
 			for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
+				// Iterate through input vectors and pass each start index to the findWinner() function
 				findWinner(input_index);
 				update_weights(input_index, input_vector_length);
 			}
 			if (iteration%cycle_length==0 && iteration != 0){
+				// After a certain time, move the gauss list (neighbourhood array) along one and then write to the appropriate buffer
 				if (gauss_value_list[1] != 0){
 					shuntGaussList();
 					// <OPENCL>
@@ -674,10 +628,13 @@ int main(int argc, char* argv[]){
 			cout << "\tMinimum Distance Read Time:\t" << min_distance_read_time << "\t(" << (min_distance_read_time/seconds)*100 << "%)" << endl;
 			cout << "\tManhattan Distance:\t\t" << manhattan_distance_time  << "\t(" << (manhattan_distance_time/seconds)*100  << "%)" << endl;
 			cout << endl;
-			
+		
+		// Read map from map buffer
 		err = command_queue.enqueueReadBuffer(map_buffer, CL_TRUE, 0, sizeof(float)*map_side_size*map_side_size*input_vector_length, map);
 		checkErr(err, "map_buffer: enqueueReadBuffer()");
 		float total_quantisation_error = 0;
+
+		// Determine quantisation error
 		for (int input_index = 0; input_index < total_input_values; input_index = input_index+input_vector_length){
 			total_quantisation_error += quantisationError(input_index);
 		}
@@ -687,6 +644,8 @@ int main(int argc, char* argv[]){
 		drawMap(map, map_side_size*map_side_size, input_vector_length, map_dir + "/map_trial_" + convert.str() + ".ppm");
 		writeToFile(map, map_side_size*map_side_size, map_dir + "/map_"+convert.str() + ".dat");
 		cout << endl;
+
+		// If this is the first trial, or this is the best quantisation error so far, save map in best map
 		if (current_trial == 0){
 			best_quantisation_error = total_quantisation_error;
 			best_map = map;
