@@ -14,7 +14,10 @@ __kernel void min_distance(
 
 
 	for (int i = start_position; i < start_position + local_chunk_size; i++){
-		if(local_winner_distance > distance_map[i]){
+		if (distance_map[i] == -1){
+			break;
+		}
+		else if(local_winner_distance > distance_map[i]){
 			local_winner_distance = distance_map[i];
 			local_winner_index = i;
 		}

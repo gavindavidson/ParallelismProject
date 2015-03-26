@@ -269,14 +269,14 @@ void findWinner(int input_index){
 	int current_min_index = 0;
 	// Iterate through the results to find the minimum distance
 	for (int i = 0; i < compute_units; i++){
-		// cout << winner_distance_array[i] << " ";
-		if (winner_distance_array[i] < current_min_value){
+	//	cout << winner_distance_array[i] << " ";
+		if (winner_distance_array[i] < current_min_value && winner_distance_array[i] != -1){
 			current_min_index = winner_index_array[i];
 			current_min_value = winner_distance_array[i];
 		}
 	}
 	// Assign the minimum distance to the update_weight kernel
-	// cout << "MIN VALUE: " << current_min_value << endl;
+	//cout << "MIN VALUE: " << current_min_value << endl;
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
@@ -424,13 +424,13 @@ int main(int argc, char* argv[]){
 	} else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
 	} 
-
+	cout << "CHUNK SIZE: " << chunk_size << endl;
 	// Build buffers
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
 	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
 		// All values in the distance_map are set to maximum so that the values that act as padding
 		// and are never set can never be considered winners. 
-		distance_map[i] = FLT_MAX;
+		distance_map[i] = -1;
 	}
 	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
 	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
