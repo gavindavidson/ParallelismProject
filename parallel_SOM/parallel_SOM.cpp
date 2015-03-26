@@ -424,7 +424,7 @@ int main(int argc, char* argv[]){
 	} else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
 	} 
-	cout << "CHUNK SIZE: " << chunk_size << endl;
+	
 	// Build buffers
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
 	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
