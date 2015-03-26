@@ -30,6 +30,7 @@ int input_vector_length = 0;
 int input_size = 0;
 int map_side_size = 0;
 int trials;
+int work_size;
 
 float gauss_value = 0.7;
 float *gauss_value_list;
@@ -239,7 +240,9 @@ void findWinner(int input_index){
 	start = std::chrono::high_resolution_clock::now();
 
 	// Enqueue min_distance kernel so that each work item deals with more than one neuron
-	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
+	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
+	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * work_size), cl::NDRange(work_size), NULL, &end_event);
+	
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
 	end_event.wait();
@@ -261,12 +264,14 @@ void findWinner(int input_index){
 	int current_min_index = 0;
 	// Iterate through the results to find the minimum distance
 	for (int i = 0; i < compute_units; i++){
+		// cout << winner_distance_array[i] << " ";
 		if (winner_distance_array[i] < current_min_value){
 			current_min_index = winner_index_array[i];
 			current_min_value = winner_distance_array[i];
 		}
 	}
 	// Assign the minimum distance to the update_weight kernel
+	// cout << "MIN VALUE: " << current_min_value << endl;
 	update_weight_kernel.setArg(3, current_min_index);
 	checkErr(err, "update_weight_kernel: kernel(3)");
 
@@ -353,7 +358,10 @@ int main(int argc, char* argv[]){
 	struct stat info;
 	if( stat( map_dir.c_str(), &info ) != 0 ){
 		string mkdir_command = "mkdir " + map_dir;
-		system(mkdir_command.c_str());
+		if (system(mkdir_command.c_str())){
+			cout << "Failed to make directory: \"" << mkdir_command << "\"" << endl;
+			exit(EXIT_FAILURE);
+		}
 	}
 
 	gauss_value_list = (float *)malloc(sizeof(float)*map_side_size);
@@ -364,12 +372,6 @@ int main(int argc, char* argv[]){
 	vector<cl::Platform> platforms;
 	string platform_name;
 	cl::Platform::get(&platforms);
-	cout << endl;
-	for (int i = 0; i < platforms.size(); i++){
-		platforms[i].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
-		cout << "Platform " << i << ": " << platform_name << endl;
-	}
-	cout << endl;
 
 	platforms[0].getInfo((cl_platform_info)CL_PLATFORM_VENDOR, &platform_name);
 
@@ -406,7 +408,7 @@ int main(int argc, char* argv[]){
 	checkErr(devices.size() > 0 ? CL_SUCCESS : -1, "devices.size() > 0");
 
 	devices[0].getInfo(CL_DEVICE_MAX_COMPUTE_UNITS, &compute_units);
-	char* device_name;
+	string device_name;
 	devices[0].getInfo(CL_DEVICE_NAME, &device_name);
 
 	// Device initialised
@@ -417,12 +419,21 @@ int main(int argc, char* argv[]){
 	} else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
 	} 
+	
+	if (compute_units > map_side_size){
+		work_size = chunk_size;
+	}
+	else {
+		work_size = map_side_size;
+	}
 
 
 	// Build buffers
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
 	for (int i = map_side_size*map_side_size; i < chunk_size*compute_units; i++){
-		distance_map[i] = -1;
+		// All values in the distance_map are set to maximum so that the values that act as padding
+		// and are never set can never be considered winners. 
+		distance_map[i] = FLT_MAX;
 	}
 	winner_distance_array = (float *)malloc(sizeof(float)*compute_units);
 	winner_index_array = (int *)malloc(sizeof(int)*compute_units);
@@ -547,13 +558,13 @@ int main(int argc, char* argv[]){
 	// </OPENCL>
 
 	cout << "== Parallel SOM \t==" << endl
-			<< "\t- Cycle length\t\t\t\t" << cycle_length << endl
-			<< "\t- Map size\t\t\t\t" << map_side_size << " x " << map_side_size << endl
-			<< "\t- Input size\t\t\t\t" << input_size << endl
-			<< "\t- Input vector length\t\t\t" << input_vector_length << endl
-			<< "\t- Trials\t\t\t\t" << trials << endl
-			<< "\n\t- Running on\t\t\t\t" << device_name << endl
-			<< "\t- Max Compute Units (per device)\t" << compute_units << endl
+			// << "\t- Cycle length\t\t\t" << cycle_length << endl
+			<< "\t- Map size\t\t\t" << map_side_size << " x " << map_side_size << endl
+			<< "\t- Input size\t\t\t" << input_size << endl
+			<< "\t- Input vector length\t\t" << input_vector_length << endl
+			<< "\t- Trials\t\t\t" << trials << endl
+			<< "\n\t- Running on\t\t\t" << device_name << endl
+			<< "\t- Compute Units\t\t\t" << compute_units << endl
  			<< "==\t\t\t==" << endl;
 
 	int current;

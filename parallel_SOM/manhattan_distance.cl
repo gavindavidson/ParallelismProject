@@ -9,9 +9,11 @@ __kernel void manhattan_distance(
    	int base_map_position = tid*vector_length;
    	
 	float sum = 0;
-	for (int component = 0; component < vector_length; component++)
+	for (int component = 0; component < 
+				vector_length; component++)
 	{
-		sum += fabs(input[input_start_index + component] - map[base_map_position+component]);
+		sum += fabs(input[input_start_index + component] 
+			- map[base_map_position+component]);
 	}
 	distance_map[tid] = sum;
 }
