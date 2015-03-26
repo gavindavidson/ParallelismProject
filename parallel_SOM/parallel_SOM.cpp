@@ -240,8 +240,13 @@ void findWinner(int input_index){
 	start = std::chrono::high_resolution_clock::now();
 
 	// Enqueue min_distance kernel so that each work item deals with more than one neuron
-	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
-	err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * work_size), cl::NDRange(work_size), NULL, &end_event);
+	if (map_side_size < compute_units){
+		err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units), cl::NDRange(1), NULL, &end_event);
+	}
+	else {
+		err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * map_side_size), cl::NDRange(map_side_size), NULL, &end_event);
+	}
+	// err = command_queue.enqueueNDRangeKernel(min_distance_kernel, cl::NullRange, cl::NDRange(compute_units * work_size), cl::NDRange(work_size), NULL, &end_event);
 	
 	checkErr(err, "min_distance_kernel: enqueueNDRangeKernel()");
 
@@ -419,14 +424,6 @@ int main(int argc, char* argv[]){
 	} else {
 		chunk_size = ((map_side_size*map_side_size) + (compute_units - ((map_side_size*map_side_size)%compute_units)))/compute_units;
 	} 
-	
-	if (compute_units > map_side_size){
-		work_size = chunk_size;
-	}
-	else {
-		work_size = map_side_size;
-	}
-
 
 	// Build buffers
 	distance_map = (float *)malloc(sizeof(float)*chunk_size*compute_units);
