@@ -1,3 +1,6 @@
+// Each of these kernels deals with one neuron on the map, the for loop
+// iterates over the components of the neuron's vector and the input
+// vector
 __kernel void manhattan_distance(
 	__global float * input,
 	__global float * map,
